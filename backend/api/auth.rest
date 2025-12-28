@@ -1,0 +1,50 @@
+### Auth API Endpoints
+@baseUrl = http://localhost:5000/api/auth
+
+### Register a new user
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+### Register with another user
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "Jane Smith",
+  "email": "jane@example.com",
+  "password": "securepass456"
+}
+
+### Login user
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+### Login with invalid credentials
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "wrongpassword"
+}
+
+### Register duplicate user (should fail)
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "John Duplicate",
+  "email": "john@example.com",
+  "password": "anotherpass789"
+}
