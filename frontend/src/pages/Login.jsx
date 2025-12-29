@@ -1,10 +1,47 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/authService';
+
 function Login() {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await authService.login(formData);
+      login(response.user);
+      toast.success('Login successful!');
+      navigate('/');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-100 to-blue-50 px-4">
-      
+
       {/* Login Card */}
       <div className="w-full max-w-md sm:max-w-lg md:max-w-md lg:max-w-md bg-white rounded-xl shadow-lg p-8 sm:p-10 border border-gray-200">
-        
+
         {/* Logo / Title */}
         <h2 className="text-2xl sm:text-3xl font-bold text-center text-blue-600 mb-2">
           MediCare
@@ -14,7 +51,7 @@ function Login() {
         </p>
 
         {/* Form */}
-        <form className="space-y-5 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
 
           {/* Email */}
           <div>
@@ -23,7 +60,11 @@ function Login() {
             </label>
             <input
               type="email"
+              name="email"
               placeholder="you@example.com"
+              value={formData.email}
+              onChange={handleChange}
+              required
               className="w-full border border-gray-300 rounded-lg px-4 py-2 sm:py-3 text-sm sm:text-base
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
             />
@@ -36,7 +77,11 @@ function Login() {
             </label>
             <input
               type="password"
+              name="password"
               placeholder="••••••••"
+              value={formData.password}
+              onChange={handleChange}
+              required
               className="w-full border border-gray-300 rounded-lg px-4 py-2 sm:py-3 text-sm sm:text-base
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
             />
@@ -44,10 +89,12 @@ function Login() {
 
           {/* Login Button */}
           <button
+            type="submit"
+            disabled={loading}
             className="w-full bg-blue-600 text-white py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium
-                       hover:bg-blue-700 transition-shadow shadow-md"
+                       hover:bg-blue-700 transition-shadow shadow-md disabled:opacity-50"
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 

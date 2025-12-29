@@ -1,6 +1,21 @@
 import { Link, NavLink } from "react-router-dom";
+import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/authService';
+import { toast } from 'react-toastify';
 
 export default function Navbar() {
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      logout();
+      toast.success('Logged out successfully');
+    } catch (error) {
+      toast.error('Logout failed');
+    }
+  };
+
   return (
     <nav className="fixed top-0 w-full z-50 bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-8 py-4 flex justify-between items-center">
@@ -12,7 +27,7 @@ export default function Navbar() {
 
         {/* Nav Links */}
         <div className="flex items-center gap-12 text-gray-700 font-medium">
-          
+
           <NavLink
             to="/"
             className={({ isActive }) =>
@@ -35,13 +50,30 @@ export default function Navbar() {
             Doctors
           </NavLink>
 
-          {/* Login Button */}
-          <Link
-            to="/login"
-            className="ml-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md"
-          >
-            Login
-          </Link>
+          {/* Auth Buttons */}
+          {user ? (
+            <button
+              onClick={handleLogout}
+              className="ml-6 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition shadow-md"
+            >
+              Logout
+            </button>
+          ) : (
+            <div className="flex gap-4">
+              <Link
+                to="/login"
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md"
+              >
+                Login
+              </Link>
+              <Link
+                to="/register"
+                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition shadow-md"
+              >
+                Register
+              </Link>
+            </div>
+          )}
 
         </div>
       </div>
