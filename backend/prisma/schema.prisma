@@ -5,12 +5,77 @@ generator client {
 datasource db {
   provider = "mysql"
 }
+// ===============================
+// ENUMS
+// ===============================
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
 
+enum AppointmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+// ===============================
+// USER MODEL
+// ===============================
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  password     String
+  role         Role      @default(PATIENT)
+
+  // Relations
+  doctor       Doctor?
+  appointments Appointment[] @relation("PatientAppointments")
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// ===============================
+// DOCTOR MODEL
+// ===============================
+model Doctor {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+
+  specialty   String
+  experience  Int
+  fee         Float
+  available   Boolean  @default(true)
+
+  // Relations
+  user         User     @relation(fields: [userId], references: [id])
+  appointments Appointment[]
+
+  createdAt   DateTime @default(now())
+}
+
+// ===============================
+// APPOINTMENT MODEL
+// ===============================
+model Appointment {
+  id              Int      @id @default(autoincrement())
+
+  patientId       Int
+  doctorId        Int
+
+  appointmentDate DateTime
+  time            String
+  reason          String?
+
+  status          AppointmentStatus @default(PENDING)
+
+  // Relations
+  patient         User    @relation("PatientAppointments", fields: [patientId], references: [id])
+  doctor          Doctor  @relation(fields: [doctorId], references: [id])
+
+  createdAt       DateTime @default(now())
 }
