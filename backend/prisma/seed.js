@@ -88,20 +88,7 @@ async function main() {
   });
 
   console.log('Patient user created:', ankita.email);
-  const ankitaPassword = await bcrypt.hash('ankita123', 10);
-
-  const ankita = await prisma.user.upsert({
-    where: { email: 'ankitakatuwal@gmail.com' },
-    update: {},
-    create: {
-      name: 'Ankita',
-      email: 'ankitakatuwal@gmail.com',
-      password: ankitaPassword,
-      role: 'PATIENT'
-    }
-  });
-
-  console.log('Patient user created:', patient.email);
+  console.log('Ankita user created:', ankita.email);
   console.log('Ankita user created:', ankita.email);
 
   console.log('Seeding completed!');

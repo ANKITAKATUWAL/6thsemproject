@@ -48,6 +48,11 @@ function BookAppointment() {
 
       setSubmitted(true);
       toast.success('Appointment booked successfully!');
+      
+      // Redirect to user dashboard after a short delay
+      setTimeout(() => {
+        navigate('/user-dashboard');
+      }, 2000);
     } catch (err) {
       console.error("Booking error:", err);
       setError(err.response?.data?.message || "Failed to book appointment");
@@ -67,9 +72,24 @@ function BookAppointment() {
       </h2>
 
       {submitted ? (
-        <p className="text-green-600 font-bold text-center">
-          Appointment booked successfully!
-        </p>
+        <div className="text-center py-8">
+          <div className="text-green-600 mb-4">
+            <svg className="w-16 h-16 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <h3 className="text-2xl font-bold">Appointment Booked Successfully!</h3>
+          </div>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <h4 className="font-semibold text-green-800 mb-2">What happens next?</h4>
+            <ul className="text-sm text-green-700 space-y-1">
+              <li>• Your appointment is currently <strong>PENDING</strong></li>
+              <li>• The doctor will review and accept/reject your appointment</li>
+              <li>• You'll receive status updates in your dashboard</li>
+              <li>• You can cancel pending appointments anytime</li>
+            </ul>
+          </div>
+          <p className="text-gray-600">Redirecting to your dashboard...</p>
+        </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-red-500 text-center">{error}</p>}

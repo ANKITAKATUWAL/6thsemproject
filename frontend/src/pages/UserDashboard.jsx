@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { doctorsData } from "../data/doctors";
+import { toast } from 'react-toastify';
 
 function UserDashboard() {
   const { user, logout } = useAuth();
@@ -62,7 +63,11 @@ function UserDashboard() {
   const loadAppointments = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/appointments/patient', { withCredentials: true });
-      setAppointments(response.data);
+      // Sort appointments by date (upcoming first)
+      const sortedAppointments = response.data.sort((a, b) => 
+        new Date(a.appointmentDate) - new Date(b.appointmentDate)
+      );
+      setAppointments(sortedAppointments);
     } catch (err) {
       console.error("Load appointments error:", err);
       setError("Failed to load appointments");
@@ -105,9 +110,10 @@ function UserDashboard() {
       setAppointments(appointments.map(app =>
         app.id === appointmentId ? { ...app, status: 'CANCELLED' } : app
       ));
+      toast.success('Appointment cancelled successfully!');
     } catch (err) {
       console.error("Cancel appointment error:", err);
-      setError("Failed to cancel appointment");
+      toast.error("Failed to cancel appointment");
     }
   };
 
@@ -240,41 +246,145 @@ function UserDashboard() {
       {/* Appointments Tab */}
       {activeTab === 'appointments' && (
         <div className="bg-white shadow-lg rounded-lg p-6">
-          <h2 className="text-2xl font-semibold mb-4">My Appointments</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-semibold">My Appointments</h2>
+            <button
+              onClick={loadAppointments}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={loading}
+            >
+              {loading ? 'Refreshing...' : '🔄 Refresh'}
+            </button>
+          </div>
+
+          {/* Appointment Stats */}
+          {appointments.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {appointments.filter(a => a.status === 'PENDING').length}
+                </div>
+                <div className="text-sm text-yellow-800">Pending</div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {appointments.filter(a => a.status === 'ACCEPTED').length}
+                </div>
+                <div className="text-sm text-green-800">Accepted</div>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-red-600">
+                  {appointments.filter(a => a.status === 'REJECTED').length}
+                </div>
+                <div className="text-sm text-red-800">Rejected</div>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-gray-600">
+                  {appointments.filter(a => a.status === 'CANCELLED').length}
+                </div>
+                <div className="text-sm text-gray-800">Cancelled</div>
+              </div>
+            </div>
+          )}
 
           {appointments.length === 0 ? (
-            <p className="text-gray-500">You haven't booked any appointments yet.</p>
+            <div className="text-center py-8">
+              <p className="text-gray-500 text-lg">You haven't booked any appointments yet.</p>
+              <Link
+                to="/doctors"
+                className="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                Browse Doctors
+              </Link>
+            </div>
           ) : (
-            <div className="space-y-4">
-              {appointments.map((appointment) => (
-                <div key={appointment.id} className="border rounded-lg p-4 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-semibold">{appointment.doctor.user.name}</h3>
-                    <p className="text-gray-600">{appointment.doctor.specialty}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.time}
-                    </p>
-                    {appointment.reason && <p className="text-sm">Reason: {appointment.reason}</p>}
-                    <span className={`inline-block px-2 py-1 rounded text-sm ${
-                      appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                      appointment.status === 'ACCEPTED' ? 'bg-green-100 text-green-800' :
-                      appointment.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {appointment.status}
-                    </span>
+            <div className="space-y-6">
+              {appointments.map((appointment) => {
+                const appointmentDate = new Date(appointment.appointmentDate);
+                const today = new Date();
+                const isUpcoming = appointmentDate >= today && appointment.status === 'ACCEPTED';
+                const isToday = appointmentDate.toDateString() === today.toDateString();
+                
+                return (
+                  <div key={appointment.id} className={`border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow ${
+                    isUpcoming ? 'border-green-200 bg-green-50' : 
+                    isToday ? 'border-blue-200 bg-blue-50' : ''
+                  }`}>
+                    {isUpcoming && (
+                      <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded mb-3 inline-block">
+                        📅 Upcoming Appointment
+                      </div>
+                    )}
+                    {isToday && (
+                      <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mb-3 inline-block">
+                        📅 Today
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold text-gray-800">{appointment.doctor.user.name}</h3>
+                        <p className="text-gray-600 mb-2">{appointment.doctor.specialty}</p>
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                          <span>📅 {new Date(appointment.appointmentDate).toLocaleDateString()}</span>
+                          <span>🕐 {appointment.time}</span>
+                        </div>
+                        {appointment.reason && (
+                          <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                            <strong>Reason:</strong> {appointment.reason}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="text-right">
+                        {/* Status Badge */}
+                        <div className="mb-3">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                            appointment.status === 'ACCEPTED' ? 'bg-green-100 text-green-800 border border-green-200' :
+                            appointment.status === 'REJECTED' ? 'bg-red-100 text-red-800 border border-red-200' :
+                            'bg-gray-100 text-gray-800 border border-gray-200'
+                          }`}>
+                            {appointment.status === 'PENDING' && '⏳ '}
+                            {appointment.status === 'ACCEPTED' && '✅ '}
+                            {appointment.status === 'REJECTED' && '❌ '}
+                            {appointment.status === 'CANCELLED' && '🚫 '}
+                            {appointment.status}
+                          </span>
+                        </div>
+                        
+                        {/* Action Button */}
+                        {appointment.status === 'PENDING' && (
+                          <button
+                            onClick={() => cancelAppointment(appointment.id)}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium"
+                          >
+                            Cancel Appointment
+                          </button>
+                        )}
+                        
+                        {appointment.status === 'ACCEPTED' && (
+                          <div className="text-green-600 font-medium">
+                            ✓ Confirmed
+                          </div>
+                        )}
+                        
+                        {appointment.status === 'REJECTED' && (
+                          <div className="text-red-600 font-medium">
+                            ✗ Not Available
+                          </div>
+                        )}
+                        
+                        {appointment.status === 'CANCELLED' && (
+                          <div className="text-gray-600 font-medium">
+                            Cancelled
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-
-                  {appointment.status === 'PENDING' && (
-                    <button
-                      onClick={() => cancelAppointment(appointment.id)}
-                      className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
