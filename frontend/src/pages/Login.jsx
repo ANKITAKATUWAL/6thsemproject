@@ -27,8 +27,18 @@ function Login() {
     try {
       const response = await authService.login(formData);
       login(response.user);
-      toast.success('Login successful!');
-      navigate('/');
+      
+      // Redirect based on user role
+      if (response.user.role === 'ADMIN') {
+        toast.success('Admin login successful!');
+        navigate('/admin-dashboard');
+      } else if (response.user.role === 'DOCTOR' || response.user.doctor) {
+        toast.success('Doctor login successful!');
+        navigate('/doctor-dashboard');
+      } else {
+        toast.success('Login successful!');
+        navigate('/user-dashboard');
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed');
     } finally {
@@ -44,11 +54,18 @@ function Login() {
 
         {/* Logo / Title */}
         <h2 className="text-2xl sm:text-3xl font-bold text-center text-blue-600 mb-2">
-          MediCare
+          MediCare Login
         </h2>
         <p className="text-center text-gray-600 mb-8 text-sm sm:text-base">
-          Securely login to your account
+          Login to access your account (Patient, Doctor, or Admin)
         </p>
+
+        {/* Role Info */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800 text-center">
+            <strong>Role-based Access:</strong> You'll be automatically redirected to your appropriate dashboard based on your account type.
+          </p>
+        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">

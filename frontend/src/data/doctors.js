@@ -1,17 +1,10 @@
-export const doctorsData = [
-  { id: 1, name: "Dr. Aiden Smith", specialty: "Cardiology", experience: 10, fee: 50, photo: "/images/doctor1.jpg" },
-  { id: 2, name: "Dr. Emma Johnson", specialty: "Cardiology", experience: 8, fee: 45, photo: "/images/doctor2.jpg" },
-  { id: 3, name: "Dr. Liam Williams", specialty: "Dermatology", experience: 7, fee: 40, photo: "/images/doctor3.jpg" },
-  { id: 4, name: "Dr. Olivia Brown", specialty: "Dermatology", experience: 9, fee: 50, photo: "/images/doctor4.jpg" },
-  { id: 5, name: "Dr. Noah Jones", specialty: "Neurology", experience: 12, fee: 60, photo: "/images/doctor5.jpg" },
-  { id: 6, name: "Dr. Ava Garcia", specialty: "Neurology", experience: 11, fee: 55, photo: "/images/doctor6.jpg" },
-  { id: 7, name: "Dr. William Martinez", specialty: "Pediatrics", experience: 8, fee: 45, photo: "/images/doctor7.jpg" },
-  { id: 8, name: "Dr. Sophia Rodriguez", specialty: "Pediatrics", experience: 9, fee: 50, photo: "/images/doctor8.jpg" },
-  { id: 9, name: "Dr. James Hernandez", specialty: "Orthopedics", experience: 10, fee: 55, photo: "/images/doctor9.jpg" },
-  { id: 10, name: "Dr. Isabella Lopez", specialty: "Orthopedics", experience: 7, fee: 45, photo: "/images/doctor10.jpg" },
-  { id: 11, name: "Dr. Benjamin Gonzalez", specialty: "Gynecology", experience: 12, fee: 60, photo: "/images/doctor11.jpg" },
-  { id: 12, name: "Dr. Mia Wilson", specialty: "Gynecology", experience: 9, fee: 50, photo: "/images/doctor12.jpg" },
-  { id: 13, name: "Dr. Lucas Anderson", specialty: "Ophthalmology", experience: 8, fee: 45, photo: "/images/doctor13.jpg" },
-  { id: 14, name: "Dr. Charlotte Thomas", specialty: "Ophthalmology", experience: 10, fee: 55, photo: "/images/doctor14.jpg" },
-  { id: 15, name: "Dr. Henry Taylor", specialty: "Cardiology", experience: 13, fee: 65, photo: "/images/doctor15.jpg" },
-];
+import { doctors } from '../assets/assets/assets_frontend/assets.js';
+
+export const doctorsData = doctors.map((doc, index) => ({
+  id: `doc${index + 1}`, // Use doc1, doc2, etc. to match database IDs
+  name: doc.name,
+  specialty: doc.speciality,
+  experience: parseInt(doc.experience.split(' ')[0]), // Extract number from "4 Years"
+  fee: doc.fees,
+  photo: doc.image
+}));

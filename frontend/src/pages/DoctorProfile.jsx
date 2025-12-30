@@ -1,12 +1,22 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { doctorsData } from "../data/doctors";
+import { useAuth } from "../context/AuthContext";
 
 function DoctorProfile() {
   const { id } = useParams();
-  const doctor = doctorsData.find((d) => d.id === parseInt(id));
+  const doctor = doctorsData.find((d) => d.id === id);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   if (!doctor) return <p className="text-center mt-10 text-red-500">Doctor not found</p>;
+
+  const handleBookAppointment = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    navigate(`/book/${doctor.id}`);
+  };
 
   return (
     <div className="max-w-4xl mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
@@ -31,7 +41,7 @@ function DoctorProfile() {
           <p className="text-gray-600"><strong>Fee:</strong> ${doctor.fee}</p>
 
           <button
-            onClick={() => navigate(`/book/${doctor.id}`)}
+            onClick={handleBookAppointment}
             className="mt-6 bg-green-600 text-white px-6 py-2 rounded-lg shadow hover:bg-green-700 transition"
           >
             Book Appointment

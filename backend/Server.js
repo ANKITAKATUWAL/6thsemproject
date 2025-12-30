@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import authRoutes from "./src/routes/auth.js";
+import appointmentRoutes from "./src/routes/appointments.js";
+import adminRoutes from "./src/routes/admin.js";
 
 dotenv.config();
 const app = express();
@@ -17,6 +19,8 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Test route
 app.get("/", (req, res) => {

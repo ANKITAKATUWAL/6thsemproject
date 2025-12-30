@@ -50,6 +50,45 @@ export default function Navbar() {
             Doctors
           </NavLink>
 
+          {user?.doctor && (
+            <NavLink
+              to="/doctor-dashboard"
+              className={({ isActive }) =>
+                isActive
+                  ? "text-blue-600 font-semibold"
+                  : "hover:text-blue-600 transition"
+              }
+            >
+              Doctor Dashboard
+            </NavLink>
+          )}
+
+          {user?.role === 'PATIENT' && (
+            <NavLink
+              to="/user-dashboard"
+              className={({ isActive }) =>
+                isActive
+                  ? "text-blue-600 font-semibold"
+                  : "hover:text-blue-600 transition"
+              }
+            >
+              My Dashboard
+            </NavLink>
+          )}
+
+          {user?.role === 'ADMIN' && (
+            <NavLink
+              to="/admin-dashboard"
+              className={({ isActive }) =>
+                isActive
+                  ? "text-blue-600 font-semibold"
+                  : "hover:text-blue-600 transition"
+              }
+            >
+              Admin Dashboard
+            </NavLink>
+          )}
+
           {/* Auth Buttons */}
           {user ? (
             <button
