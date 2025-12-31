@@ -175,4 +175,30 @@ router.put("/:id/cancel", auth, async (req, res) => {
   }
 });
 
+// Update doctor profile
+router.put("/doctor/profile", auth, async (req, res) => {
+  try {
+    if (!req.user.doctor) {
+      return res.status(403).json({ message: "Access denied. Doctor only." });
+    }
+
+    const { specialty, experience, fee } = req.body;
+
+    const updatedDoctor = await prisma.doctor.update({
+      where: { id: req.user.doctor.id },
+      data: {
+        specialty,
+        experience: experience ? parseInt(experience) : undefined,
+        fee: fee ? parseFloat(fee) : undefined
+      },
+      include: { user: { select: { name: true, email: true } } }
+    });
+
+    res.json(updatedDoctor);
+  } catch (err) {
+    console.error("Update doctor profile error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;

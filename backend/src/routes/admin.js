@@ -140,4 +140,83 @@ router.post("/create-doctor/:userId", auth, requireAdmin, async (req, res) => {
   }
 });
 
+// Get all doctors
+router.get("/doctors", auth, requireAdmin, async (req, res) => {
+  try {
+    const doctors = await prisma.doctor.findMany({
+      include: {
+        user: { select: { name: true, email: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(doctors);
+  } catch (err) {
+    console.error("Get doctors error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Approve doctor
+router.put("/doctors/:id/approve", auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const doctor = await prisma.doctor.update({
+      where: { id: parseInt(id) },
+      data: { approved: true },
+      include: { user: { select: { name: true, email: true } } }
+    });
+
+    res.json(doctor);
+  } catch (err) {
+    console.error("Approve doctor error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Reject doctor
+router.put("/doctors/:id/reject", auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const doctor = await prisma.doctor.update({
+      where: { id: parseInt(id) },
+      data: { approved: false },
+      include: { user: { select: { name: true, email: true } } }
+    });
+
+    res.json(doctor);
+  } catch (err) {
+    console.error("Reject doctor error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Delete user
+router.delete("/users/:id", auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // First delete related appointments
+    await prisma.appointment.deleteMany({
+      where: { OR: [{ patientId: parseInt(id) }, { doctorId: parseInt(id) }] }
+    });
+
+    // Delete doctor profile if exists
+    await prisma.doctor.deleteMany({
+      where: { userId: parseInt(id) }
+    });
+
+    // Delete user
+    await prisma.user.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    console.error("Delete user error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;

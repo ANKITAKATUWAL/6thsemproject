@@ -60,7 +60,8 @@ router.post("/login", async (req, res) => {
 
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
+      include: { doctor: true }
     });
     
     let finalUser = user;
@@ -69,15 +70,67 @@ router.post("/login", async (req, res) => {
     if (!user) {
       console.log("Creating test user:", email);
       const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Check if this should be a doctor user
+      const isDoctorUser = email.toLowerCase().includes('dr.') || email.toLowerCase().includes('doctor') || 
+                          email.split('@')[0].toLowerCase().includes('dr.') || 
+                          email.split('@')[0].toLowerCase().includes('richard') || 
+                          email.split('@')[0].toLowerCase().includes('emily') ||
+                          email.split('@')[0].toLowerCase().includes('sarah');
+      
+      const userRole = isDoctorUser ? 'DOCTOR' : 'PATIENT';
+      
       finalUser = await prisma.user.create({
         data: { 
           name: email.split('@')[0], // Use part before @ as name
           email, 
           password: hashedPassword,
-          role: 'PATIENT'
-        }
+          role: userRole
+        },
+        include: { doctor: true }
       });
-      console.log("User created successfully:", finalUser.email);
+      
+      // If this is a doctor, create the doctor profile
+      if (isDoctorUser) {
+        // Map common doctor names to their specialties
+        const doctorSpecialties = {
+          'richard': 'General physician',
+          'emily': 'Gynecologist', 
+          'sarah': 'Dermatologist'
+        };
+        
+        const namePart = email.split('@')[0].toLowerCase();
+        let specialty = 'General physician'; // default
+        let experience = 4;
+        let fee = 50;
+        
+        for (const [key, spec] of Object.entries(doctorSpecialties)) {
+          if (namePart.includes(key)) {
+            specialty = spec;
+            break;
+          }
+        }
+        
+        await prisma.doctor.create({
+          data: {
+            userId: finalUser.id,
+            specialty,
+            experience,
+            fee: fee.toString(),
+            approved: true // Auto-approve for testing
+          }
+        });
+        
+        // Refetch user with doctor data
+        finalUser = await prisma.user.findUnique({
+          where: { id: finalUser.id },
+          include: { doctor: true }
+        });
+        
+        console.log("Doctor profile created for:", finalUser.email);
+      }
+      
+      console.log("User created successfully:", finalUser.email, "Role:", userRole);
     }
     
     if (!finalUser) {
