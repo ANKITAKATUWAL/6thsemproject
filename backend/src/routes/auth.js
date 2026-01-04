@@ -10,14 +10,15 @@ const router = express.Router();
 router.post("/register", async (req, res) => {
   try {
     console.log("Register attempt for email:", req.body.email);
-    const { name, email, password } = req.body;
+    let { name, email, password } = req.body;
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
+    // Normalize email for storage
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+
+    // Check if user exists (case-insensitive)
+    const existingUser = await prisma.user.findFirst({ where: { email: { equals: normalizedEmail, mode: 'insensitive' } } });
     if (existingUser) {
-      console.log("User already exists:", email);
+      console.log("User already exists:", normalizedEmail);
       return res.status(400).json({ message: "User already exists" });
     }
 
@@ -25,9 +26,9 @@ router.post("/register", async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Save user
+    // Save user with normalized email
     const newUser = await prisma.user.create({
-      data: { name, email, password: hashedPassword }
+      data: { name, email: normalizedEmail, password: hashedPassword }
     });
 
     // Create JWT token
@@ -56,9 +57,11 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     console.log("Login attempt for email:", req.body.email, "password length:", req.body.password?.length);
-    const { email, password } = req.body;
+    let { email, password } = req.body;
 
-    // Find user
+    // Normalize email to lowercase and trim, then look up directly
+    if (typeof email === 'string') email = email.trim().toLowerCase();
+
     const user = await prisma.user.findUnique({
       where: { email },
       include: { doctor: true }
@@ -80,10 +83,12 @@ router.post("/login", async (req, res) => {
       
       const userRole = isDoctorUser ? 'DOCTOR' : 'PATIENT';
       
+      const normalizedEmail = typeof email === 'string' ? email.toLowerCase() : email;
+
       finalUser = await prisma.user.create({
         data: { 
           name: email.split('@')[0], // Use part before @ as name
-          email, 
+          email: normalizedEmail, 
           password: hashedPassword,
           role: userRole
         },
@@ -138,12 +143,31 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Compare password
-    const isMatch = await bcrypt.compare(password, finalUser.password);
-    if (!isMatch) {
-      console.log("Password mismatch for user:", email);
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
+      // Compare password. Support legacy plaintext passwords by migrating them to hashed.
+      let isMatch = false;
+      if (finalUser.password) {
+        try {
+          isMatch = await bcrypt.compare(password, finalUser.password);
+        } catch (e) {
+          isMatch = false;
+        }
+        // If bcrypt failed and stored password equals provided password (legacy plaintext), migrate it
+        if (!isMatch && finalUser.password === password) {
+          try {
+            const newHashed = await bcrypt.hash(password, 10);
+            await prisma.user.update({ where: { id: finalUser.id }, data: { password: newHashed } });
+            isMatch = true;
+            console.log(`Migrated plaintext password to hashed for user: ${email}`);
+          } catch (e) {
+            console.error('Password migration error:', e);
+          }
+        }
+      }
+
+      if (!isMatch) {
+        console.log("Password mismatch for user:", email);
+        return res.status(400).json({ message: "Invalid credentials" });
+      }
 
     // Create JWT token
     const token = jwt.sign({ id: finalUser.id }, process.env.JWT_SECRET, {

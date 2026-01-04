@@ -57,12 +57,45 @@ function AdminDashboard() {
   const fetchUsers = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/admin/users', { withCredentials: true });
-      setUsers(response.data);
+      // Show only patient users who do NOT have a doctor profile
+      setUsers(response.data.filter(u => u.role === 'PATIENT' && !u.doctor));
     } catch (err) {
       console.error("Fetch users error:", err);
       setError("Failed to load users");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createDoctorForUser = async (userId) => {
+    try {
+      // Prompt for basic doctor info (simple flow for admin UI)
+      const specialty = window.prompt('Enter specialty (e.g. General physician):', 'General physician');
+      if (!specialty) return;
+      const experience = window.prompt('Enter experience (years):', '3');
+      if (experience === null) return;
+      const fee = window.prompt('Enter fee (number):', '50');
+      if (fee === null) return;
+
+      await axios.post(`http://localhost:5000/api/admin/create-doctor/${userId}`, { specialty, experience, fee }, { withCredentials: true });
+      toast.success('Doctor profile created');
+      fetchDoctors();
+      fetchUsers();
+    } catch (err) {
+      console.error('Create doctor error:', err);
+      toast.error('Failed to create doctor');
+    }
+  };
+
+  const deleteDoctor = async (doctorId) => {
+    if (!window.confirm('Delete this doctor and all their appointments?')) return;
+    try {
+      await axios.delete(`http://localhost:5000/api/admin/doctors/${doctorId}`, { withCredentials: true });
+      toast.success('Doctor deleted');
+      fetchDoctors();
+    } catch (err) {
+      console.error('Delete doctor error:', err);
+      toast.error('Failed to delete doctor');
     }
   };
 
@@ -267,12 +300,17 @@ function AdminDashboard() {
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => deleteUser(user.id)}
-                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
-                      >
-                        Delete
-                      </button>
+                        <div className="flex gap-2">
+                          {!user.doctor && (
+                            <button onClick={() => createDoctorForUser(user.id)} className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-sm">Create Doctor</button>
+                          )}
+                          <button
+                            onClick={() => deleteUser(user.id)}
+                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
+                          >
+                            Delete
+                          </button>
+                        </div>
                     </td>
                   </tr>
                 ))}

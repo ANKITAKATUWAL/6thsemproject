@@ -1,0 +1,1 @@
+Never make any changes to the prisma config files icluding the file in the lib dir that is prisma.js

@@ -177,7 +177,7 @@ function Home() {
         </footer>
       </div>
     </div>
-  );
+  ); 
 }
 
 export default Home;

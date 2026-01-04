@@ -98,7 +98,7 @@ function DoctorDashboard() {
 
   const updateProfile = async () => {
     try {
-      await axios.put('http://localhost:5000/api/doctor/profile', profile, { withCredentials: true });
+      await axios.put('http://localhost:5000/api/appointments/doctor/profile', profile, { withCredentials: true });
       setEditingProfile(false);
       toast.success('Profile updated successfully!');
     } catch (err) {

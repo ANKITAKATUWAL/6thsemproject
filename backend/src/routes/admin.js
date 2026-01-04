@@ -192,25 +192,49 @@ router.put("/doctors/:id/reject", auth, requireAdmin, async (req, res) => {
   }
 });
 
+// Delete doctor
+router.delete("/doctors/:id", auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doctorId = parseInt(id);
+
+    // Delete appointments for this doctor
+    await prisma.appointment.deleteMany({ where: { doctorId } });
+
+    // Delete the doctor record
+    await prisma.doctor.delete({ where: { id: doctorId } });
+
+    res.json({ message: "Doctor deleted successfully" });
+  } catch (err) {
+    console.error("Delete doctor error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // Delete user
 router.delete("/users/:id", auth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = parseInt(id);
 
-    // First delete related appointments
-    await prisma.appointment.deleteMany({
-      where: { OR: [{ patientId: parseInt(id) }, { doctorId: parseInt(id) }] }
-    });
+    // Find any doctor records for this user to get their doctor ids
+    const doctors = await prisma.doctor.findMany({ where: { userId }, select: { id: true } });
+    const doctorIds = doctors.map(d => d.id);
 
-    // Delete doctor profile if exists
-    await prisma.doctor.deleteMany({
-      where: { userId: parseInt(id) }
-    });
+    // Delete appointments where this user is the patient OR where the appointment references one of this user's doctor ids
+    const appointmentWhere = doctorIds.length > 0
+      ? { OR: [{ patientId: userId }, { doctorId: { in: doctorIds } }] }
+      : { patientId: userId };
 
-    // Delete user
-    await prisma.user.delete({
-      where: { id: parseInt(id) }
-    });
+    await prisma.appointment.deleteMany({ where: appointmentWhere });
+
+    // Delete doctor profile(s) if exist
+    if (doctorIds.length > 0) {
+      await prisma.doctor.deleteMany({ where: { id: { in: doctorIds } } });
+    }
+
+    // Finally delete the user
+    await prisma.user.delete({ where: { id: userId } });
 
     res.json({ message: "User deleted successfully" });
   } catch (err) {

@@ -2,6 +2,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { doctorsData } from "../data/doctors";
 import { useState } from "react";
 import axios from "axios";
+import api from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import { toast } from 'react-toastify';
 
@@ -39,12 +40,12 @@ function BookAppointment() {
 
     try {
       const doctorId = parseInt(id.replace('doc', ''));
-      const response = await axios.post('http://localhost:5000/api/appointments/book', {
+      const response = await api.post('/appointments/book', {
         doctorId,
         appointmentDate: `${form.date}T${form.time}:00`, // Combine date and time
         time: form.time,
         reason: form.reason
-      }, { withCredentials: true });
+      });
 
       setSubmitted(true);
       toast.success('Appointment booked successfully!');

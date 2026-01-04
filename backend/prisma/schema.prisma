@@ -50,6 +50,7 @@ model Doctor {
   experience  Int
   fee         Float
   available   Boolean  @default(true)
+  approved    Boolean  @default(false)
 
   // Relations
   user         User     @relation(fields: [userId], references: [id])
