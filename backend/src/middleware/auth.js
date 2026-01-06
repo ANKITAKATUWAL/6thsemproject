@@ -8,7 +8,9 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: "No token, authorization denied" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || "dev_secret";
+    if (!process.env.JWT_SECRET) console.warn("Warning: JWT_SECRET not set — using development fallback secret.");
+    const decoded = jwt.verify(token, jwtSecret);
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       include: { doctor: true }

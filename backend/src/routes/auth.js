@@ -16,7 +16,7 @@ router.post("/register", async (req, res) => {
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
 
     // Check if user exists (case-insensitive)
-    const existingUser = await prisma.user.findFirst({ where: { email: { equals: normalizedEmail, mode: 'insensitive' } } });
+    const existingUser = await prisma.user.findFirst({ where: { email: { equals: normalizedEmail, lte: 'insensitive' } } });
     if (existingUser) {
       console.log("User already exists:", normalizedEmail);
       return res.status(400).json({ message: "User already exists" });
@@ -31,8 +31,10 @@ router.post("/register", async (req, res) => {
       data: { name, email: normalizedEmail, password: hashedPassword }
     });
 
-    // Create JWT token
-    const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET, {
+    // Create JWT token (use fallback for development if JWT_SECRET not set)
+    const jwtSecret = process.env.JWT_SECRET || "dev_secret";
+    if (!process.env.JWT_SECRET) console.warn("Warning: JWT_SECRET not set — using development fallback secret.");
+    const token = jwt.sign({ id: newUser.id }, jwtSecret, {
       expiresIn: "1d",
     });
 
@@ -169,8 +171,10 @@ router.post("/login", async (req, res) => {
         return res.status(400).json({ message: "Invalid credentials" });
       }
 
-    // Create JWT token
-    const token = jwt.sign({ id: finalUser.id }, process.env.JWT_SECRET, {
+    // Create JWT token (use fallback for development if JWT_SECRET not set)
+    const jwtSecret = process.env.JWT_SECRET || "dev_secret";
+    if (!process.env.JWT_SECRET) console.warn("Warning: JWT_SECRET not set — using development fallback secret.");
+    const token = jwt.sign({ id: finalUser.id }, jwtSecret, {
       expiresIn: "1d",
     });
 

@@ -26,13 +26,24 @@ function Login() {
 
     try {
       const response = await authService.login(formData);
-      login(response.user);
-      
-      // Redirect based on user role
-      if (response.user.role === 'ADMIN') {
+
+      // Detect admin by email (case-insensitive) and ensure context has ADMIN role
+      const userEmail = (response.user?.email || '').toLowerCase();
+      const serverRole = (response.user?.role || '').toString().toUpperCase();
+
+      const clientUser = { ...response.user };
+      if (userEmail === 'admin@example.com' || serverRole === 'ADMIN') {
+        clientUser.role = 'ADMIN';
+      }
+
+      login(clientUser);
+
+      // Redirect based on resolved role
+      const role = (clientUser.role || '').toString().toUpperCase();
+      if (role === 'ADMIN') {
         toast.success('Admin login successful!');
         navigate('/admin-dashboard');
-      } else if (response.user.role === 'DOCTOR' || response.user.doctor) {
+      } else if (role === 'DOCTOR' || clientUser.doctor) {
         toast.success('Doctor login successful!');
         navigate('/doctor-dashboard');
       } else {
