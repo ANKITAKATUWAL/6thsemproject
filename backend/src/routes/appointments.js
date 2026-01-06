@@ -162,6 +162,25 @@ router.get("/doctor", auth, async (req, res) => {
   }
 });
 
+// Get doctor's profile without auto-creating it
+router.get('/doctor/profile', auth, async (req, res) => {
+  try {
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId: req.user.id },
+      include: { user: true }
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    res.json(doctor);
+  } catch (err) {
+    console.error('Get doctor profile error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get doctor's availability
 router.get('/doctor/availability', auth, async (req, res) => {
   try {

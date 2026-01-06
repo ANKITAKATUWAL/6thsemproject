@@ -1,6 +1,7 @@
 import express from "express";
 import { prisma } from "../libs/prisma.js";
 import auth from "../middleware/auth.js";
+import bcrypt from "bcryptjs";
 import { blockUser, unblockUser, isBlocked } from "../libs/blockedUsers.js";
 
 const router = express.Router();
@@ -220,6 +221,55 @@ router.post("/create-doctor/:userId", auth, requireAdmin, async (req, res) => {
   }
 });
 
+// Create doctor account with credentials (admin only)
+router.post("/create-doctor-account", auth, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, password, specialty, experience, fee } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ message: "Name, email and password are required" });
+    }
+
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+
+    // Check if email already exists
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      return res.status(400).json({ message: "Email already in use" });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user with DOCTOR role
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: 'DOCTOR'
+      }
+    });
+
+    // Create doctor profile
+    const doctor = await prisma.doctor.create({
+      data: {
+        userId: newUser.id,
+        specialty: specialty || null,
+        experience: experience ? parseInt(experience) : 0,
+        fee: fee ? parseFloat(fee) : 0
+      },
+      include: { user: { select: { name: true, email: true } } }
+    });
+
+    res.status(201).json({ user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role }, doctor });
+  } catch (err) {
+    console.error("Create doctor account error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // Edit doctor details
 router.put('/doctors/:id', auth, requireAdmin, async (req, res) => {
   try {
@@ -303,13 +353,15 @@ router.put("/doctors/:id/reject", auth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const doctor = await prisma.doctor.update({
-      where: { id: parseInt(id) },
-      data: { approved: false },
-      include: { user: { select: { name: true, email: true } } }
-    });
+    const doctorId = parseInt(id);
 
-    res.json(doctor);
+    // Delete appointments for this doctor first
+    await prisma.appointment.deleteMany({ where: { doctorId } });
+
+    // Delete the doctor record
+    await prisma.doctor.delete({ where: { id: doctorId } });
+
+    res.json({ message: "Doctor rejected and removed" });
   } catch (err) {
     console.error("Reject doctor error:", err);
     res.status(500).json({ message: "Server error" });

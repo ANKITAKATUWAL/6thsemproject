@@ -42,16 +42,29 @@ function Login() {
         return;
       }
 
-      // Detect admin by email (case-insensitive) and ensure context has ADMIN role
+      // Detect server role and enforce that selected role matches it
       const userEmail = (response.user?.email || '').toLowerCase();
       const serverRole = (response.user?.role || '').toString().toUpperCase();
 
-      const clientUser = { ...response.user };
-      // Prefer server role, but fall back to selected role
-      if (!clientUser.role) clientUser.role = role;
-      if (userEmail === 'admin@example.com' || serverRole === 'ADMIN') {
-        clientUser.role = 'ADMIN';
+      // If server provided a role, require the admin to select the same role
+      if (serverRole) {
+        // Special-case admin email: treat as ADMIN on server
+        if (userEmail === 'admin@example.com' && role !== 'ADMIN') {
+          toast.error('This account is an admin account — please select Admin and try again.');
+          setLoading(false);
+          return;
+        }
+
+        if (serverRole !== role) {
+          toast.error(`Selected role does not match account role (${serverRole}). Please select the correct role.`);
+          setLoading(false);
+          return;
+        }
       }
+
+      const clientUser = { ...response.user };
+      // If serverRole exists, prefer it; otherwise fall back to selected role
+      clientUser.role = serverRole || role;
 
       // store token if returned
       if (response.token) {

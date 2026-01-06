@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { toast } from 'react-toastify';
 
 function AdminDashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState({
@@ -16,6 +16,8 @@ function AdminDashboard() {
   });
   const [users, setUsers] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newDoctor, setNewDoctor] = useState({ name: '', email: '', password: '', specialty: '', experience: '', fee: '' });
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -117,6 +119,24 @@ function AdminDashboard() {
     }
   };
 
+  const createDoctorAccount = async () => {
+    try {
+      if (!newDoctor.name || !newDoctor.email || !newDoctor.password) {
+        toast.error('Name, email and password are required');
+        return;
+      }
+
+      await axios.post('http://localhost:5000/api/admin/create-doctor-account', newDoctor, { withCredentials: true });
+      toast.success('Doctor account created');
+      setNewDoctor({ name: '', email: '', password: '', specialty: '', experience: '', fee: '' });
+      setShowCreateForm(false);
+      fetchDoctors();
+    } catch (err) {
+      console.error('Create doctor account error:', err);
+      toast.error('Failed to create doctor account');
+    }
+  };
+
   const fetchAppointments = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/admin/appointments', { withCredentials: true });
@@ -170,8 +190,9 @@ function AdminDashboard() {
   const rejectDoctor = async (doctorId) => {
     try {
       await axios.put(`http://localhost:5000/api/admin/doctors/${doctorId}/reject`, {}, { withCredentials: true });
-      setDoctors(doctors.map(d => d.id === doctorId ? { ...d, approved: false } : d));
-      toast.success('Doctor rejected');
+      // Remove the rejected doctor from the list immediately
+      setDoctors(doctors.filter(d => d.id !== doctorId));
+      toast.success('Doctor rejected and removed from list');
     } catch (err) {
       console.error("Reject doctor error:", err);
       toast.error("Failed to reject doctor");
@@ -211,15 +232,6 @@ function AdminDashboard() {
     <div className="max-w-7xl mx-auto mt-10 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <button
-          onClick={() => {
-            logout();
-            navigate('/');
-          }}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
-        >
-          Logout
-        </button>
       </div>
 
       {/* Navigation Tabs */}
@@ -281,6 +293,7 @@ function AdminDashboard() {
                 <tr className="bg-gray-50">
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Name</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Email</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Contact</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Role</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Created</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
@@ -291,32 +304,20 @@ function AdminDashboard() {
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">{user.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{user.email}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <select
-                        value={user.role}
-                        onChange={(e) => updateUserRole(user.id, e.target.value)}
-                        className="border rounded px-2 py-1 text-sm"
-                      >
-                        <option value="PATIENT">Patient</option>
-                        <option value="DOCTOR">Doctor</option>
-                        <option value="ADMIN">Admin</option>
-                      </select>
-                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{user.phone || user.contact || user.contactNumber || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{user.role === 'PATIENT' ? 'User' : user.role}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                        <div className="flex gap-2">
-                          {!user.doctor && (
-                            <button onClick={() => createDoctorForUser(user.id)} className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-sm">Create Doctor</button>
-                          )}
-                          <button
-                            onClick={() => deleteUser(user.id)}
-                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => deleteUser(user.id)}
+                          className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -331,13 +332,38 @@ function AdminDashboard() {
         <div className="bg-white shadow-lg rounded-lg p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold">Doctor Management</h2>
-            <button
-              onClick={fetchDoctors}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              🔄 Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowCreateForm(s => !s)}
+                className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition"
+              >
+                ➕ Create Doctor Account
+              </button>
+              <button
+                onClick={fetchDoctors}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                🔄 Refresh
+              </button>
+            </div>
           </div>
+
+          {showCreateForm && (
+            <div className="mb-6 p-4 border rounded bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input value={newDoctor.name} onChange={e => setNewDoctor({ ...newDoctor, name: e.target.value })} placeholder="Name" className="border rounded px-3 py-2" />
+                <input value={newDoctor.email} onChange={e => setNewDoctor({ ...newDoctor, email: e.target.value })} placeholder="Email" className="border rounded px-3 py-2" />
+                <input value={newDoctor.password} onChange={e => setNewDoctor({ ...newDoctor, password: e.target.value })} placeholder="Password" type="password" className="border rounded px-3 py-2" />
+                <input value={newDoctor.specialty} onChange={e => setNewDoctor({ ...newDoctor, specialty: e.target.value })} placeholder="Specialty" className="border rounded px-3 py-2" />
+                <input value={newDoctor.experience} onChange={e => setNewDoctor({ ...newDoctor, experience: e.target.value })} placeholder="Experience (years)" type="number" className="border rounded px-3 py-2" />
+                <input value={newDoctor.fee} onChange={e => setNewDoctor({ ...newDoctor, fee: e.target.value })} placeholder="Fee" type="number" className="border rounded px-3 py-2" />
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button onClick={createDoctorAccount} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Create</button>
+                <button onClick={() => setShowCreateForm(false)} className="bg-gray-300 text-gray-800 px-4 py-2 rounded">Cancel</button>
+              </div>
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto">

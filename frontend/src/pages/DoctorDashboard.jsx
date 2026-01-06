@@ -19,6 +19,7 @@ function DoctorDashboard() {
     fee: '',
     bio: ''
   });
+  const [profileExists, setProfileExists] = useState(true);
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,10 +35,16 @@ function DoctorDashboard() {
       return;
     }
 
+    // Fetch appointments and availability as before
     if (activeTab === 'appointments') fetchAppointments();
-    else if (activeTab === 'profile') fetchProfile();
     else if (activeTab === 'availability') fetchAvailability();
   }, [activeTab, user, navigate]);
+
+  // Always fetch profile on load (use logged-in user id)
+  useEffect(() => {
+    if (!user) return;
+    fetchProfile();
+  }, [user]);
 
   const fetchAppointments = async () => {
     try {
@@ -53,18 +60,25 @@ function DoctorDashboard() {
 
   const fetchProfile = async () => {
     try {
-      // Get doctor profile from user.doctor or fetch from API
-      if (user.doctor) {
-        setProfile({
-          specialty: user.doctor.specialty || '',
-          experience: user.doctor.experience || '',
-          fee: user.doctor.fee || '',
-          bio: user.doctor.bio || ''
-        });
-      }
+      // Try to fetch the profile from server (do not auto-create)
+      const res = await axios.get('http://localhost:5000/api/appointments/doctor/profile', { withCredentials: true });
+      const d = res.data;
+      setProfile({
+        specialty: d.specialty || '',
+        experience: d.experience || '',
+        fee: d.fee || '',
+        bio: d.bio || ''
+      });
+      setProfileExists(true);
     } catch (err) {
-      console.error("Fetch profile error:", err);
-      setError("Failed to load profile");
+      if (err?.response?.status === 404) {
+        // Profile missing
+        setProfileExists(false);
+        setProfile({ specialty: '', experience: '', fee: '', bio: '' });
+      } else {
+        console.error("Fetch profile error:", err);
+        setError("Failed to load profile");
+      }
     } finally {
       setLoading(false);
     }
@@ -218,11 +232,15 @@ function DoctorDashboard() {
   }).length;
   const pendingRequests = appointments.filter(a => (a.status || '').toUpperCase() === 'PENDING').length;
 
+  const specialty = user.doctor?.specialty || profile.specialty || 'Not specified';
+  const experience = user.doctor?.experience || profile.experience || '—';
+  const fee = user.doctor?.fee || profile.fee || '—';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
-        title={`Welcome back, Dr. ${user.name}!`}
-        subtitle="Manage your appointments and profile"
+        title={`Dr. ${user.name}`}
+        subtitle={`${specialty} • ${experience} yrs • ${fee !== '—' ? `$${fee}` : 'Fee not set'}`}
         actions={
           <button
             onClick={() => {
@@ -348,6 +366,12 @@ function DoctorDashboard() {
             <div className="max-w-md space-y-6">
               {!editingProfile ? (
                 <div className="space-y-4">
+                  {!profileExists && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
+                      <p className="text-yellow-800 font-medium">Complete Profile</p>
+                      <p className="text-sm text-gray-600">You haven't completed your doctor profile yet. Please go to the profile section to add your details.</p>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                     <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.name}</p>
@@ -358,19 +382,19 @@ function DoctorDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.doctor?.specialty || 'Not specified'}</p>
+                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{profile.specialty || 'Not specified'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.doctor?.experience || 'Not specified'} years</p>
+                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{profile.experience || 'Not specified'} years</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Consultation Fee</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.doctor?.fee ? `$${user.doctor.fee}` : 'Not specified'}</p>
+                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{profile.fee ? `$${profile.fee}` : 'Not specified'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg min-h-[60px]">{user.doctor?.bio || 'No bio available'}</p>
+                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg min-h-[60px]">{profile.bio || 'No bio available'}</p>
                   </div>
                   <button
                     onClick={() => setEditingProfile(true)}
