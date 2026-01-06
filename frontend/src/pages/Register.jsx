@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
+import Cookies from 'js-cookie';
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -10,6 +11,7 @@ function Register() {
     email: '',
     password: ''
   });
+  const [role, setRole] = useState('PATIENT');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -21,15 +23,39 @@ function Register() {
     });
   };
 
+  const handleRoleChange = (e) => setRole(e.target.value);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await authService.register(formData);
-      login(response.user);
-      toast.success('Registration successful! You are now logged in.');
-      navigate('/');
+      // include selected role in registration payload
+      const payload = { ...formData, role };
+      const response = await authService.register(payload);
+
+      // store token if returned
+      if (response.token) {
+        Cookies.set('token', response.token, { expires: 7 });
+      }
+
+      const registeredUser = { ...response.user };
+      if (!registeredUser.role) registeredUser.role = role;
+      login(registeredUser);
+      localStorage.setItem('role', (registeredUser.role || '').toString().toUpperCase());
+
+      // Redirect similar to login behavior
+      const r = (registeredUser.role || '').toString().toUpperCase();
+      if (r === 'ADMIN') {
+        toast.success('Admin registered and logged in');
+        navigate('/admin-dashboard');
+      } else if (r === 'DOCTOR' || registeredUser.doctor) {
+        toast.success('Doctor registered and logged in');
+        navigate('/doctor-dashboard');
+      } else {
+        toast.success('Registration successful!');
+        navigate('/my-dashboard');
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed');
     } finally {
@@ -43,6 +69,13 @@ function Register() {
         <h2 className="text-2xl font-bold mb-6 text-center">Register</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Register as</label>
+            <select value={role} onChange={handleRoleChange} className="w-full border p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="PATIENT">User</option>
+              <option value="DOCTOR">Doctor</option>
+            </select>
+          </div>
           <input
             type="text"
             name="name"

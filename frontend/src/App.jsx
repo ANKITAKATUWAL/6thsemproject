@@ -9,7 +9,8 @@ import DoctorProfile from "./pages/DoctorProfile";
 import BookAppointment from "./pages/BookAppointment"; // new
 import DoctorDashboard from "./pages/DoctorDashboard"; // new
 import AdminDashboard from "./pages/AdminDashboard"; // new
-import UserDashboard from "./pages/UserDashboard"; // new
+import MyDashboard from "./pages/MyDashboard";
+import RequireAuth from './components/RequireAuth';
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
@@ -24,9 +25,21 @@ function App() {
           <Route path="/doctors" element={<Doctors />} />
           <Route path="/doctors/:id" element={<DoctorProfile />} />
           <Route path="/book/:id" element={<BookAppointment />} /> {/* new */}
-          <Route path="/doctor-dashboard" element={<DoctorDashboard />} /> {/* new */}
-          <Route path="/admin-dashboard" element={<AdminDashboard />} /> {/* new */}
-          <Route path="/user-dashboard" element={<UserDashboard />} /> {/* new */}
+          <Route path="/doctor-dashboard" element={
+            <RequireAuth allowedRoles={["DOCTOR"]}>
+              <DoctorDashboard />
+            </RequireAuth>
+          } />
+          <Route path="/admin-dashboard" element={
+            <RequireAuth allowedRoles={["ADMIN"]}>
+              <AdminDashboard />
+            </RequireAuth>
+          } />
+          <Route path="/my-dashboard" element={
+            <RequireAuth allowedRoles={["PATIENT"]}>
+              <MyDashboard />
+            </RequireAuth>
+          } />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Routes>

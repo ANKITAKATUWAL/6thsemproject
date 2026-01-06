@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
+import Cookies from 'js-cookie';
 
 function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+  const [role, setRole] = useState('PATIENT');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -20,38 +22,71 @@ function Login() {
     });
   };
 
+  const handleRoleChange = (e) => setRole(e.target.value);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await authService.login(formData);
+      // include requested role for server-side auth (server may ignore but it's sent)
+      console.log('Submitting login', { formData, role });
+      const response = await authService.login({ ...formData, role });
+      console.log('Login response:', response);
+
+      // basic validation of server response
+      if (!response || !response.user) {
+        console.error('Invalid login response', response);
+        toast.error('Login failed: invalid server response');
+        setLoading(false);
+        return;
+      }
 
       // Detect admin by email (case-insensitive) and ensure context has ADMIN role
       const userEmail = (response.user?.email || '').toLowerCase();
       const serverRole = (response.user?.role || '').toString().toUpperCase();
 
       const clientUser = { ...response.user };
+      // Prefer server role, but fall back to selected role
+      if (!clientUser.role) clientUser.role = role;
       if (userEmail === 'admin@example.com' || serverRole === 'ADMIN') {
         clientUser.role = 'ADMIN';
       }
 
+      // store token if returned
+      if (response.token) {
+        Cookies.set('token', response.token, { expires: 7 });
+      }
+
       login(clientUser);
+      localStorage.setItem('role', (clientUser.role || '').toString().toUpperCase());
 
       // Redirect based on resolved role
-      const role = (clientUser.role || '').toString().toUpperCase();
-      if (role === 'ADMIN') {
+      const resolvedRole = (clientUser.role || '').toString().toUpperCase();
+      if (resolvedRole === 'ADMIN') {
         toast.success('Admin login successful!');
         navigate('/admin-dashboard');
-      } else if (role === 'DOCTOR' || clientUser.doctor) {
+      } else if (resolvedRole === 'DOCTOR' || clientUser.doctor) {
         toast.success('Doctor login successful!');
         navigate('/doctor-dashboard');
       } else {
         toast.success('Login successful!');
-        navigate('/user-dashboard');
+        navigate('/my-dashboard');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed');
+      console.error('Login error caught:', error);
+      // Show detailed error in toast and console to help debugging
+      const serverMessage = error?.response?.data?.message;
+      const status = error?.response?.status;
+      if (serverMessage) {
+        toast.error(`Login failed: ${serverMessage}`);
+      } else if (status) {
+        toast.error(`Login failed: HTTP ${status}`);
+      } else if (error?.message) {
+        toast.error(`Login failed: ${error.message}`);
+      } else {
+        toast.error('Login failed: unknown error');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,11 +106,14 @@ function Login() {
           Login to access your account (Patient, Doctor, or Admin)
         </p>
 
-        {/* Role Info */}
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800 text-center">
-            <strong>Role-based Access:</strong> You'll be automatically redirected to your appropriate dashboard based on your account type.
-          </p>
+        {/* Role Selector */}
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <label className="block text-sm font-medium text-blue-800 mb-2">Sign in as</label>
+          <select value={role} onChange={handleRoleChange} className="w-full p-3 border border-gray-300 rounded-lg">
+            <option value="PATIENT">User</option>
+            <option value="DOCTOR">Doctor</option>
+            <option value="ADMIN">Admin</option>
+          </select>
         </div>
 
         {/* Form */}

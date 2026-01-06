@@ -50,9 +50,9 @@ function BookAppointment() {
       setSubmitted(true);
       toast.success('Appointment booked successfully!');
       
-      // Redirect to user dashboard after a short delay
+      // Redirect to My Dashboard after a short delay
       setTimeout(() => {
-        navigate('/user-dashboard');
+        navigate('/my-dashboard');
       }, 2000);
     } catch (err) {
       console.error("Booking error:", err);

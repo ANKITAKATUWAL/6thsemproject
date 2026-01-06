@@ -50,7 +50,7 @@ export default function Navbar() {
             Doctors
           </NavLink>
 
-          {user?.doctor && (
+          {(user?.role === 'DOCTOR' || user?.doctor) && (
             <NavLink
               to="/doctor-dashboard"
               className={({ isActive }) =>
@@ -65,7 +65,7 @@ export default function Navbar() {
 
           {user?.role === 'PATIENT' && (
             <NavLink
-              to="/user-dashboard"
+              to="/my-dashboard"
               className={({ isActive }) =>
                 isActive
                   ? "text-blue-600 font-semibold"

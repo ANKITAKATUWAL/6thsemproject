@@ -30,21 +30,27 @@ function AdminDashboard() {
     else if (activeTab === 'users') fetchUsers();
     else if (activeTab === 'doctors') fetchDoctors();
     else if (activeTab === 'appointments') fetchAppointments();
+
+    // Poll for updates so admin sees newly registered users without manual reload
+    let interval;
+    if (activeTab === 'overview') {
+      interval = setInterval(() => fetchStats(), 15000); // every 15s
+    } else if (activeTab === 'users') {
+      interval = setInterval(() => fetchUsers(), 10000); // every 10s
+    }
+
+    return () => clearInterval(interval);
   }, [activeTab, user, navigate]);
 
   const fetchStats = async () => {
     try {
-      const [usersRes, doctorsRes, appointmentsRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/admin/users', { withCredentials: true }),
-        axios.get('http://localhost:5000/api/admin/doctors', { withCredentials: true }),
-        axios.get('http://localhost:5000/api/admin/appointments', { withCredentials: true })
-      ]);
-
+      // Use the dedicated stats endpoint (returns counts)
+      const res = await axios.get('http://localhost:5000/api/admin/stats', { withCredentials: true });
       setStats({
-        totalUsers: usersRes.data.length,
-        totalDoctors: doctorsRes.data.length,
-        totalAppointments: appointmentsRes.data.length,
-        pendingAppointments: appointmentsRes.data.filter(a => a.status === 'PENDING').length
+        totalUsers: res.data.totalUsers,
+        totalDoctors: res.data.totalDoctors,
+        totalAppointments: res.data.totalAppointments,
+        pendingAppointments: res.data.pendingAppointments
       });
     } catch (err) {
       console.error("Fetch stats error:", err);

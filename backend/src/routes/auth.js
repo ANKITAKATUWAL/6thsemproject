@@ -191,7 +191,9 @@ router.post("/login", async (req, res) => {
     res.json({ token, user: { id: finalUser.id, name: finalUser.name, email: finalUser.email, role: finalUser.role, doctor: finalUser.doctor } });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Server error" });
+    // Return error details in development to help debugging
+    const isDev = process.env.NODE_ENV !== 'production';
+    res.status(500).json({ message: "Server error", error: isDev ? err.message : undefined, stack: isDev ? err.stack : undefined });
   }
 });
 
