@@ -16,15 +16,20 @@ function DoctorDashboard() {
   const [profile, setProfile] = useState({
     specialty: '',
     experience: '',
-    fee: ''
+    fee: '',
+    bio: ''
   });
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingProfile, setEditingProfile] = useState(false);
+  const [patientModalOpen, setPatientModalOpen] = useState(false);
+  const [patientDetails, setPatientDetails] = useState(null);
+  const [loadingPatient, setLoadingPatient] = useState(false);
+  const [availabilityState, setAvailabilityState] = useState(null);
 
   useEffect(() => {
-    if (user && !user.doctor) {
+    if (user && !(user.role === 'DOCTOR' || user.doctor)) {
       navigate('/');
       return;
     }
@@ -53,7 +58,8 @@ function DoctorDashboard() {
         setProfile({
           specialty: user.doctor.specialty || '',
           experience: user.doctor.experience || '',
-          fee: user.doctor.fee || ''
+          fee: user.doctor.fee || '',
+          bio: user.doctor.bio || ''
         });
       }
     } catch (err) {
@@ -66,14 +72,10 @@ function DoctorDashboard() {
 
   const fetchAvailability = async () => {
     try {
-      // For now, just set some default availability
-      setAvailability([
-        { day: 'Monday', slots: ['09:00', '10:00', '14:00', '15:00'] },
-        { day: 'Tuesday', slots: ['09:00', '10:00', '14:00', '15:00'] },
-        { day: 'Wednesday', slots: ['09:00', '10:00', '14:00', '15:00'] },
-        { day: 'Thursday', slots: ['09:00', '10:00', '14:00', '15:00'] },
-        { day: 'Friday', slots: ['09:00', '10:00', '14:00', '15:00'] }
-      ]);
+      const res = await axios.get('http://localhost:5000/api/appointments/doctor/availability', { withCredentials: true });
+      setAvailabilityState(res.data);
+      // convert to UI-friendly availability list if needed
+      setAvailability(res.data?.timeSlots?.length ? res.data.timeSlots : ['09:00','10:00','14:00','15:00']);
     } catch (err) {
       console.error("Fetch availability error:", err);
       setError("Failed to load availability");
@@ -107,6 +109,32 @@ function DoctorDashboard() {
     }
   };
 
+  const openPatientDetails = async (patientId) => {
+    if (!patientId) return;
+    try {
+      setLoadingPatient(true);
+      const res = await axios.get(`http://localhost:5000/api/appointments/patient/${patientId}`, { withCredentials: true });
+      setPatientDetails(res.data);
+      setPatientModalOpen(true);
+    } catch (err) {
+      console.error('Fetch patient details error:', err);
+      toast.error('Failed to load patient details');
+    } finally {
+      setLoadingPatient(false);
+    }
+  };
+
+  const saveAvailability = async (payload) => {
+    try {
+      const res = await axios.put('http://localhost:5000/api/appointments/doctor/availability', payload, { withCredentials: true });
+      setAvailabilityState(res.data);
+      toast.success('Availability updated');
+    } catch (err) {
+      console.error('Save availability error:', err);
+      toast.error('Failed to save availability');
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'PENDING': return 'bg-yellow-100 text-yellow-800';
@@ -125,13 +153,48 @@ function DoctorDashboard() {
     );
   }
 
-  if (!user.doctor) {
+  if (!(user.role === 'DOCTOR' || user.doctor)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600">Doctor privileges required.</p>
         </div>
+        {patientModalOpen && patientDetails && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg w-full max-w-2xl p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold">Patient Details</h3>
+                <button onClick={() => setPatientModalOpen(false)} className="text-gray-500">Close</button>
+              </div>
+              <div>
+                <div className="mb-3">
+                  <div className="text-lg font-semibold">{patientDetails.patient?.name}</div>
+                  <div className="text-sm text-gray-600">{patientDetails.patient?.email}</div>
+                </div>
+
+                <div className="mb-4">
+                  <h4 className="font-medium mb-2">Appointment History</h4>
+                  <div className="space-y-2">
+                    {(patientDetails.appointments || []).map(a => (
+                      <div key={a.id} className="border rounded p-3 bg-gray-50">
+                        <div className="flex justify-between">
+                          <div>
+                            <div className="font-medium">{a.doctor?.user?.name || 'Doctor'}</div>
+                            <div className="text-sm text-gray-600">{new Date(a.appointmentDate).toLocaleString()}</div>
+                          </div>
+                          <div className="text-sm">Status: {a.status}</div>
+                        </div>
+                        {a.reason && <div className="text-sm text-gray-700 mt-2">Reason: {a.reason}</div>}
+                        {a.notes && <div className="text-sm text-gray-700 mt-1">Notes: {a.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -141,6 +204,19 @@ function DoctorDashboard() {
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'availability', label: 'Availability', icon: '🕐' }
   ];
+
+  // Derived stats
+  const totalAppointments = appointments.length;
+  const todayAppointments = appointments.filter(a => {
+    try {
+      const d = new Date(a.appointmentDate);
+      const today = new Date();
+      return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+    } catch (e) {
+      return false;
+    }
+  }).length;
+  const pendingRequests = appointments.filter(a => (a.status || '').toUpperCase() === 'PENDING').length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -161,6 +237,28 @@ function DoctorDashboard() {
       />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="col-span-1">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-md p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-2xl">👨‍⚕️</div>
+                <div>
+                  <div className="text-sm text-gray-500">Doctor</div>
+                  <div className="text-lg font-semibold">Dr. {user.name}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <StatsCard title="Total Appointments" value={totalAppointments} icon="🔢" color="blue" />
+          </div>
+          <div>
+            <StatsCard title="Today's Appointments" value={todayAppointments} icon="📅" color="purple" />
+          </div>
+          <div>
+            <StatsCard title="Pending Requests" value={pendingRequests} icon="⏳" color="yellow" />
+          </div>
+        </div>
         <DashboardNav
           tabs={tabs}
           activeTab={activeTab}
@@ -234,6 +332,7 @@ function DoctorDashboard() {
                       key={appointment.id}
                       appointment={appointment}
                       onStatusUpdate={updateStatus}
+                      onViewPatient={openPatientDetails}
                       userRole="doctor"
                     />
                   ))}
@@ -266,6 +365,10 @@ function DoctorDashboard() {
                     <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.doctor?.experience || 'Not specified'} years</p>
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Consultation Fee</label>
+                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.doctor?.fee ? `$${user.doctor.fee}` : 'Not specified'}</p>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
                     <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg min-h-[60px]">{user.doctor?.bio || 'No bio available'}</p>
                   </div>
@@ -294,6 +397,17 @@ function DoctorDashboard() {
                       type="number"
                       value={profile.experience}
                       onChange={(e) => setProfile({...profile, experience: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Consultation Fee (USD)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={profile.fee}
+                      onChange={(e) => setProfile({...profile, fee: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     />
@@ -333,11 +447,65 @@ function DoctorDashboard() {
         {activeTab === 'availability' && (
           <DashboardCard title="My Availability">
             <div className="space-y-6">
-              <div className="text-center py-8">
-                <div className="text-6xl mb-4">🕐</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Availability Management</h3>
-                <p className="text-gray-600">Set your working hours and availability preferences.</p>
-                <p className="text-sm text-gray-500 mt-2">Coming soon...</p>
+              <div className="mb-4">
+                <label className="flex items-center gap-3">
+                  <input type="checkbox" checked={availabilityState?.enabled ?? true} onChange={(e) => setAvailabilityState(s => ({ ...(s||{}), enabled: e.target.checked }))} />
+                  <span className="text-sm">Availability ON</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Working days</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, idx) => (
+                    <label key={d} className={`px-3 py-1 rounded border ${availabilityState?.workingDays?.includes(idx) ? 'bg-blue-600 text-white' : 'bg-white'}`}>
+                      <input type="checkbox" className="hidden" checked={availabilityState?.workingDays?.includes(idx)} onChange={() => {
+                        const arr = new Set(availabilityState?.workingDays || []);
+                        if (arr.has(idx)) arr.delete(idx); else arr.add(idx);
+                        setAvailabilityState(s => ({ ...(s||{}), workingDays: Array.from(arr) }));
+                      }} />
+                      {d}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Time slots</label>
+                <div className="flex gap-2 flex-wrap">
+                  {(availabilityState?.timeSlots || availability).map((t) => (
+                    <div key={t} className="px-3 py-1 bg-gray-100 rounded">{t}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Disabled dates</label>
+                <div className="flex items-center gap-2">
+                  <input type="date" id="addDisabled" className="border p-2 rounded" />
+                  <button onClick={() => {
+                    const input = document.getElementById('addDisabled');
+                    if (!input || !input.value) return;
+                    const date = input.value;
+                    const arr = new Set(availabilityState?.disabledDates || []);
+                    arr.add(date);
+                    setAvailabilityState(s => ({ ...(s||{}), disabledDates: Array.from(arr) }));
+                    input.value = '';
+                  }} className="bg-blue-600 text-white px-3 py-1 rounded">Add</button>
+                </div>
+                <div className="mt-3 flex gap-2 flex-wrap">
+                  {(availabilityState?.disabledDates || []).map(d => (
+                    <div key={d} className="px-3 py-1 bg-red-100 rounded flex items-center gap-2">
+                      <span className="text-sm">{d}</span>
+                      <button onClick={() => setAvailabilityState(s => ({ ...(s||{}), disabledDates: (s.disabledDates||[]).filter(x => x !== d) }))} className="text-red-600">✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => saveAvailability(availabilityState)} className="bg-green-600 text-white px-4 py-2 rounded">Save</button>
+                <button onClick={() => fetchAvailability()} className="bg-gray-600 text-white px-4 py-2 rounded">Reload</button>
               </div>
             </div>
           </DashboardCard>

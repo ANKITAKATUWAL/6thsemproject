@@ -1,6 +1,7 @@
 import express from "express";
 import { prisma } from "../libs/prisma.js";
 import auth from "../middleware/auth.js";
+import { blockUser, unblockUser, isBlocked } from "../libs/blockedUsers.js";
 
 const router = express.Router();
 
@@ -15,13 +16,23 @@ const requireAdmin = (req, res, next) => {
 // Get all users
 router.get("/users", auth, requireAdmin, async (req, res) => {
   try {
+    const { search } = req.query;
+    const where = search ? {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ]
+    } : {};
+
     const users = await prisma.user.findMany({
-      include: {
-        doctor: true
-      },
+      where,
+      include: { doctor: true },
       orderBy: { createdAt: "desc" }
     });
-    res.json(users);
+
+    // annotate blocked status from in-memory store
+    const annotated = users.map(u => ({ ...u, blocked: isBlocked(u.id) }));
+    res.json(annotated);
   } catch (err) {
     console.error("Get users error:", err);
     res.status(500).json({ message: "Server error" });
@@ -47,20 +58,89 @@ router.put("/users/:id/role", auth, requireAdmin, async (req, res) => {
   }
 });
 
+// Block a user (in-memory)
+router.put('/users/:id/block', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    blockUser(id);
+    res.json({ message: 'User blocked' });
+  } catch (err) {
+    console.error('Block user error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Unblock a user (in-memory)
+router.put('/users/:id/unblock', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    unblockUser(id);
+    res.json({ message: 'User unblocked' });
+  } catch (err) {
+    console.error('Unblock user error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get all appointments
 router.get("/appointments", auth, requireAdmin, async (req, res) => {
   try {
+    const { doctorId, date, status } = req.query;
+    const where = {};
+
+    if (doctorId) {
+      where.doctorId = parseInt(doctorId);
+    }
+
+    if (status) {
+      // allow comma-separated statuses
+      const s = status.split(',').map(x => x.trim().toUpperCase());
+      where.status = { in: s };
+    }
+
+    if (date) {
+      // expect YYYY-MM-DD
+      const start = new Date(date + 'T00:00:00.000Z');
+      const end = new Date(date + 'T23:59:59.999Z');
+      where.AND = [
+        { appointmentDate: { gte: start } },
+        { appointmentDate: { lte: end } }
+      ];
+    }
+
     const appointments = await prisma.appointment.findMany({
+      where,
       include: {
         patient: { select: { name: true, email: true } },
         doctor: { include: { user: { select: { name: true } } } }
       },
       orderBy: { createdAt: "desc" }
     });
+
     res.json(appointments);
   } catch (err) {
     console.error("Get appointments error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Admin cancel appointment
+router.put('/appointments/:id/cancel', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const appointment = await prisma.appointment.update({
+      where: { id: parseInt(id) },
+      data: { status: 'CANCELLED' },
+      include: {
+        patient: { select: { name: true, email: true } },
+        doctor: { include: { user: { select: { name: true } } } }
+      }
+    });
+
+    res.json(appointment);
+  } catch (err) {
+    console.error('Admin cancel appointment error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -137,6 +217,50 @@ router.post("/create-doctor/:userId", auth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("Create doctor error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Edit doctor details
+router.put('/doctors/:id', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { specialty, experience, fee, bio, approved, available } = req.body;
+
+    const updated = await prisma.doctor.update({
+      where: { id: parseInt(id) },
+      data: {
+        specialty: specialty !== undefined ? specialty : undefined,
+        experience: experience !== undefined ? parseInt(experience) : undefined,
+        fee: fee !== undefined ? parseFloat(fee) : undefined,
+        // if schema doesn't have bio, this will be ignored by prisma at runtime
+        ...(bio !== undefined ? { bio } : {}),
+        ...(approved !== undefined ? { approved: !!approved } : {}),
+        ...(available !== undefined ? { available: !!available } : {})
+      },
+      include: { user: { select: { name: true, email: true } } }
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error('Edit doctor error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle doctor availability (admin)
+router.put('/doctors/:id/availability', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { available } = req.body;
+    const updated = await prisma.doctor.update({
+      where: { id: parseInt(id) },
+      data: { available: !!available },
+      include: { user: { select: { name: true, email: true } } }
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error('Toggle doctor availability error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

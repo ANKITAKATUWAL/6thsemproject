@@ -94,6 +94,7 @@ export const StatsCard = ({
 export const AppointmentCard = ({
   appointment,
   onStatusUpdate,
+  onViewPatient,
   showActions = true,
   className = ''
 }) => {
@@ -162,22 +163,27 @@ export const AppointmentCard = ({
               {appointment.status}
             </span>
 
-            {showActions && appointment.status === 'PENDING' && (
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => onStatusUpdate(appointment.id, 'ACCEPTED')}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                >
-                  Accept
-                </button>
-                <button
-                  onClick={() => onStatusUpdate(appointment.id, 'REJECTED')}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                >
-                  Reject
-                </button>
-              </div>
-            )}
+            <div className="flex items-center space-x-2">
+              {onViewPatient && (
+                <button onClick={() => onViewPatient(appointment.patient?.id)} className="bg-gray-600 text-white px-3 py-1 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium">View</button>
+              )}
+              {showActions && appointment.status === 'PENDING' && (
+                <>
+                  <button
+                    onClick={() => onStatusUpdate(appointment.id, 'ACCEPTED')}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => onStatusUpdate(appointment.id, 'REJECTED')}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                  >
+                    Reject
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

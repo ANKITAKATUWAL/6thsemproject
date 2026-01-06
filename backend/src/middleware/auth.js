@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../libs/prisma.js";
+import { isBlocked } from "../libs/blockedUsers.js";
 
 const auth = async (req, res, next) => {
   try {
@@ -19,7 +20,10 @@ const auth = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
-
+    if (isBlocked(user.id)) {
+      console.warn(`Blocked user login attempt: ${user.email} (${user.id})`);
+      return res.status(403).json({ message: 'Account blocked. Contact admin.' });
+    }
     req.user = user;
     next();
   } catch (err) {
