@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import Cookies from 'js-cookie';
@@ -44,14 +45,15 @@ function Register() {
       login(registeredUser);
       localStorage.setItem('role', (registeredUser.role || '').toString().toUpperCase());
 
-      // Redirect similar to login behavior
-      const r = (registeredUser.role || '').toString().toUpperCase();
-      if (r === 'ADMIN') {
+      // If doctor, check profile existence like the login flow
+      const resolvedRole = (registeredUser.role || '').toString().toUpperCase();
+      if (resolvedRole === 'ADMIN') {
         toast.success('Admin registered and logged in');
         navigate('/admin-dashboard');
-      } else if (r === 'DOCTOR' || registeredUser.doctor) {
-        toast.success('Doctor registered and logged in');
-        navigate('/doctor-dashboard');
+      } else if (resolvedRole === 'DOCTOR' || registeredUser.doctor) {
+        // Always send newly-registered doctors to the details form so they complete their profile
+        toast.info('Please complete your doctor profile');
+        navigate('/doctor-details');
       } else {
         toast.success('Registration successful!');
         navigate('/my-dashboard');

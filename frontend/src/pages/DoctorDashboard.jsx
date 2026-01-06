@@ -88,8 +88,8 @@ function DoctorDashboard() {
     try {
       const res = await axios.get('http://localhost:5000/api/appointments/doctor/availability', { withCredentials: true });
       setAvailabilityState(res.data);
-      // convert to UI-friendly availability list if needed
-      setAvailability(res.data?.timeSlots?.length ? res.data.timeSlots : ['09:00','10:00','14:00','15:00']);
+      // use timeSlots only if provided by server; do not fall back to hardcoded slots
+      setAvailability(res.data?.timeSlots?.length ? res.data.timeSlots : []);
     } catch (err) {
       console.error("Fetch availability error:", err);
       setError("Failed to load availability");

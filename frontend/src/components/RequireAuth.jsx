@@ -17,5 +17,11 @@ export default function RequireAuth({ children, allowedRoles = [] }) {
     return <Navigate to="/" replace />;
   }
 
+  // If route requires DOCTOR and the doctor has no profile, redirect to details form
+  // Avoid redirect loop when already on the details page
+  if (allowedRoles.map(r => r.toUpperCase()).includes('DOCTOR') && role === 'DOCTOR' && !user.doctor && location.pathname !== '/doctor-details') {
+    return <Navigate to="/doctor-details" replace />;
+  }
+
   return children;
 }

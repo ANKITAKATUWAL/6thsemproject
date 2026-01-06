@@ -8,6 +8,7 @@ import Doctors from "./pages/Doctors";
 import DoctorProfile from "./pages/DoctorProfile";
 import BookAppointment from "./pages/BookAppointment"; // new
 import DoctorDashboard from "./pages/DoctorDashboard"; // new
+import DoctorDetails from "./pages/DoctorDetails";
 import AdminDashboard from "./pages/AdminDashboard"; // new
 import MyDashboard from "./pages/MyDashboard";
 import RequireAuth from './components/RequireAuth';
@@ -28,6 +29,11 @@ function App() {
           <Route path="/doctor-dashboard" element={
             <RequireAuth allowedRoles={["DOCTOR"]}>
               <DoctorDashboard />
+            </RequireAuth>
+          } />
+          <Route path="/doctor-details" element={
+            <RequireAuth allowedRoles={["DOCTOR"]}>
+              <DoctorDetails />
             </RequireAuth>
           } />
           <Route path="/admin-dashboard" element={

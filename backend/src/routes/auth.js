@@ -10,7 +10,7 @@ const router = express.Router();
 router.post("/register", async (req, res) => {
   try {
     console.log("Register attempt for email:", req.body.email);
-    let { name, email, password } = req.body;
+    let { name, email, password, role } = req.body;
 
     // Normalize email for storage
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
@@ -28,7 +28,7 @@ router.post("/register", async (req, res) => {
 
     // Save user with normalized email
     const newUser = await prisma.user.create({
-      data: { name, email: normalizedEmail, password: hashedPassword }
+      data: { name, email: normalizedEmail, password: hashedPassword, role: role && ['PATIENT','DOCTOR','ADMIN'].includes(role) ? role : undefined }
     });
 
     // Create JWT token (use fallback for development if JWT_SECRET not set)
@@ -211,6 +211,23 @@ router.get("/me", auth, async (req, res) => {
   } catch (err) {
     console.error("Get me error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// UPDATE CURRENT USER (allow updating name)
+router.put('/me', auth, async (req, res) => {
+  try {
+    const { name } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+
+    if (Object.keys(updates).length === 0) return res.status(400).json({ message: 'No updatable fields provided' });
+
+    const updated = await prisma.user.update({ where: { id: req.user.id }, data: updates });
+    res.json({ user: updated });
+  } catch (err) {
+    console.error('Update me error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

@@ -19,26 +19,7 @@ router.post("/book", auth, async (req, res) => {
     });
 
     if (!doctor) {
-      // Create a dummy user for the doctor
-      const doctorUser = await prisma.user.create({
-        data: {
-          name: `Doctor ${doctorId}`,
-          email: `doctor${doctorId}@medicare.com`,
-          password: await bcrypt.hash('doctor123', 10),
-          role: 'DOCTOR'
-        }
-      });
-
-      // Create the doctor
-      doctor = await prisma.doctor.create({
-        data: {
-          userId: doctorUser.id,
-          specialty: 'General Physician',
-          experience: 5,
-          fee: 50.0,
-          available: true
-        }
-      });
+      return res.status(404).json({ message: 'Doctor not found' });
     }
 
     if (!doctor.available) {
@@ -110,24 +91,13 @@ router.post("/book", auth, async (req, res) => {
 // Get appointments for doctor
 router.get("/doctor", auth, async (req, res) => {
   try {
-    // If the user has role DOCTOR but no doctor profile, create a basic doctor profile
+    // Require an existing doctor profile (do not auto-create placeholders)
+    if (req.user.role !== 'DOCTOR' && !req.user.doctor) {
+      return res.status(403).json({ message: "Access denied. Doctor only." });
+    }
+
     if (!req.user.doctor) {
-      if (req.user.role === 'DOCTOR') {
-        console.log('Auto-creating doctor profile for user:', req.user.email);
-        const created = await prisma.doctor.create({
-          data: {
-            userId: req.user.id,
-            specialty: 'General physician',
-            experience: 3,
-            fee: 50.0,
-            approved: true
-          }
-        });
-        // attach to req.user for this request
-        req.user.doctor = created;
-      } else {
-        return res.status(403).json({ message: "Access denied. Doctor only." });
-      }
+      return res.status(404).json({ message: 'Doctor profile not found' });
     }
 
     // allow doctor or admin to fetch a patient's details by query param ?patientId=...
@@ -198,10 +168,10 @@ router.get('/doctor/availability', auth, async (req, res) => {
 // Update doctor's availability
 router.put('/doctor/availability', auth, async (req, res) => {
   try {
-    if (!(req.user.role === 'DOCTOR' || req.user.doctor)) return res.status(403).json({ message: 'Access denied' });
+    if (req.user.role !== 'DOCTOR' && !req.user.doctor) return res.status(403).json({ message: 'Access denied' });
     const key = req.user.id;
     const payload = req.body || {};
-    const existing = availabilityStore.get(key) || { enabled: true, workingDays: [1,2,3,4,5], disabledDates: [], timeSlots: ['09:00','10:00','14:00','15:00'] };
+    const existing = availabilityStore.get(key) || { enabled: true, workingDays: [1,2,3,4,5], disabledDates: [], timeSlots: [] };
     const updated = { ...existing, ...payload };
     availabilityStore.set(key, updated);
     res.json(updated);
@@ -345,33 +315,34 @@ router.put("/:id/cancel", auth, async (req, res) => {
 // Update doctor profile
 router.put("/doctor/profile", auth, async (req, res) => {
   try {
+    const { specialty, experience, fee, bio } = req.body;
+
+    // If doctor profile does not exist, allow the doctor user to create it using provided data
     if (!req.user.doctor) {
       if (req.user.role === 'DOCTOR') {
-        console.log('Auto-creating doctor profile for user (profile update):', req.user.email);
+        if (!specialty) return res.status(400).json({ message: 'Specialty is required to create a profile' });
         const created = await prisma.doctor.create({
           data: {
             userId: req.user.id,
-            specialty: 'General physician',
-            experience: 3,
-            fee: 50.0,
-            approved: true
-          }
+            specialty,
+            ...(experience !== undefined ? { experience: parseInt(experience) } : { experience: 0 }),
+            ...(fee !== undefined ? { fee: parseFloat(fee) } : { fee: 0 }),
+            ...(bio !== undefined ? { bio } : {})
+          },
+          include: { user: { select: { name: true, email: true } } }
         });
-        req.user.doctor = created;
-      } else {
-        return res.status(403).json({ message: "Access denied. Doctor only." });
+        return res.status(201).json(created);
       }
+      return res.status(403).json({ message: "Access denied. Doctor only." });
     }
-
-    const { specialty, experience, fee, bio } = req.body;
 
     const updatedDoctor = await prisma.doctor.update({
       where: { id: req.user.doctor.id },
       data: {
-        specialty,
-        experience: experience ? parseInt(experience) : undefined,
-        fee: fee ? parseFloat(fee) : undefined,
-        bio: bio !== undefined ? bio : undefined
+        ...(specialty !== undefined ? { specialty } : {}),
+        ...(experience !== undefined ? { experience: parseInt(experience) } : {}),
+        ...(fee !== undefined ? { fee: parseFloat(fee) } : {}),
+        ...(bio !== undefined ? { bio } : {})
       },
       include: { user: { select: { name: true, email: true } } }
     });

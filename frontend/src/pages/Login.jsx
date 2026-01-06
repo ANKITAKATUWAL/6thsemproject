@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import Cookies from 'js-cookie';
@@ -80,8 +81,22 @@ function Login() {
         toast.success('Admin login successful!');
         navigate('/admin-dashboard');
       } else if (resolvedRole === 'DOCTOR' || clientUser.doctor) {
-        toast.success('Doctor login successful!');
-        navigate('/doctor-dashboard');
+        // Check whether doctor profile exists before navigating to dashboard
+        try {
+          await axios.get('http://localhost:5000/api/appointments/doctor/profile', { withCredentials: true });
+          toast.success('Doctor login successful!');
+          navigate('/doctor-dashboard');
+        } catch (e) {
+          // If profile missing, redirect to details form
+          if (e?.response?.status === 404) {
+            toast.info('Please complete your doctor profile');
+            navigate('/doctor-details');
+          } else {
+            // Other errors: still navigate to dashboard and let it handle
+            toast.success('Doctor login successful!');
+            navigate('/doctor-dashboard');
+          }
+        }
       } else {
         toast.success('Login successful!');
         navigate('/my-dashboard');
