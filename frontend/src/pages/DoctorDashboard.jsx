@@ -17,7 +17,8 @@ function DoctorDashboard() {
     specialty: '',
     experience: '',
     fee: '',
-    bio: ''
+    bio: '',
+    photo: ''
   });
   const [profileExists, setProfileExists] = useState(true);
   const [availability, setAvailability] = useState([]);
@@ -28,6 +29,9 @@ function DoctorDashboard() {
   const [patientDetails, setPatientDetails] = useState(null);
   const [loadingPatient, setLoadingPatient] = useState(false);
   const [availabilityState, setAvailabilityState] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (user && !(user.role === 'DOCTOR' || user.doctor)) {
@@ -67,14 +71,20 @@ function DoctorDashboard() {
         specialty: d.specialty || '',
         experience: d.experience || '',
         fee: d.fee || '',
-        bio: d.bio || ''
+        bio: d.about || '',
+        photo: d.photo || ''
       });
+      // Set photo preview if photo exists
+      if (d.photo) {
+        const photoUrl = d.photo.startsWith('http') ? d.photo : `http://localhost:5000${d.photo}`;
+        setPhotoPreview(photoUrl);
+      }
       setProfileExists(true);
     } catch (err) {
       if (err?.response?.status === 404) {
         // Profile missing
         setProfileExists(false);
-        setProfile({ specialty: '', experience: '', fee: '', bio: '' });
+        setProfile({ specialty: '', experience: '', fee: '', bio: '', photo: '' });
       } else {
         console.error("Fetch profile error:", err);
         setError("Failed to load profile");
@@ -146,6 +156,54 @@ function DoctorDashboard() {
     } catch (err) {
       console.error('Save availability error:', err);
       toast.error('Failed to save availability');
+    }
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handlePhotoUpload = async () => {
+    if (!photoFile) {
+      toast.error('Please select a photo first');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', photoFile);
+
+      const response = await axios.post(
+        'http://localhost:5000/api/appointments/doctor/photo',
+        formData,
+        {
+          withCredentials: true,
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
+      );
+
+      setProfile(prev => ({ ...prev, photo: response.data.photo }));
+      setPhotoFile(null);
+      toast.success('Photo uploaded successfully!');
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      toast.error(err?.response?.data?.message || 'Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -372,6 +430,21 @@ function DoctorDashboard() {
                       <p className="text-sm text-gray-600">You haven't completed your doctor profile yet. Please go to the profile section to add your details.</p>
                     </div>
                   )}
+                  {/* Profile Photo Display */}
+                  <div className="flex flex-col items-center mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
+                    {photoPreview ? (
+                      <img
+                        src={photoPreview}
+                        alt="Profile"
+                        className="w-32 h-32 rounded-full object-cover border-4 border-blue-200 shadow-lg"
+                      />
+                    ) : (
+                      <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-300">
+                        <span className="text-gray-500 text-4xl">👨‍⚕️</span>
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                     <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.name}</p>
@@ -405,6 +478,43 @@ function DoctorDashboard() {
                 </div>
               ) : (
                 <form onSubmit={(e) => { e.preventDefault(); updateProfile(); }} className="space-y-4">
+                  {/* Photo Upload Section */}
+                  <div className="flex flex-col items-center mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
+                    {photoPreview ? (
+                      <img
+                        src={photoPreview}
+                        alt="Profile preview"
+                        className="w-32 h-32 rounded-full object-cover border-4 border-blue-200 shadow-lg mb-3"
+                      />
+                    ) : (
+                      <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-300 mb-3">
+                        <span className="text-gray-500 text-4xl">👨‍⚕️</span>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded border text-sm">
+                        <span>{photoFile ? 'Change Photo' : 'Select Photo'}</span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                          onChange={handlePhotoChange}
+                          className="hidden"
+                        />
+                      </label>
+                      {photoFile && (
+                        <button
+                          type="button"
+                          onClick={handlePhotoUpload}
+                          disabled={uploadingPhoto}
+                          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 text-sm"
+                        >
+                          {uploadingPhoto ? 'Uploading...' : 'Upload'}
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-gray-500 text-xs mt-2">Max: 5MB (JPEG, PNG, GIF, WebP)</p>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
                     <input

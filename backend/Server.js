@@ -2,10 +2,17 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 import authRoutes from "./src/routes/auth.js";
 import appointmentRoutes from "./src/routes/appointments.js";
 import adminRoutes from "./src/routes/admin.js";
+import doctorRoutes from "./src/routes/doctors.js";
 import { prisma } from "./src/libs/prisma.js";
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 const app = express();
@@ -18,10 +25,14 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Serve static files from uploads folder
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/doctors", doctorRoutes);
 
 // Test route
 app.get("/", (req, res) => {

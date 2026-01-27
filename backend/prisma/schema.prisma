@@ -51,6 +51,8 @@ model Doctor {
   fee         Float
   available   Boolean  @default(true)
   approved    Boolean  @default(false)
+  photo       String?  // URL to doctor's photo
+  about       String?  @db.Text // About/bio of the doctor
 
   // Relations
   user         User     @relation(fields: [userId], references: [id])

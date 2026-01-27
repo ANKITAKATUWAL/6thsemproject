@@ -2,10 +2,75 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../libs/prisma.js";
 import auth from "../middleware/auth.js";
+import upload from "../middleware/upload.js";
 
 const router = express.Router();
 // In-memory availability store for doctors (doctorId -> availability object)
 const availabilityStore = new Map();
+
+// Upload doctor photo
+router.post("/doctor/photo", auth, upload.single('photo'), async (req, res) => {
+  try {
+    console.log('Photo upload request received');
+    console.log('User:', req.user?.id, req.user?.role);
+    console.log('File:', req.file);
+    
+    if (req.user.role !== 'DOCTOR') {
+      return res.status(403).json({ message: "Access denied. Doctor only." });
+    }
+
+    if (!req.file) {
+      console.log('No file in request');
+      return res.status(400).json({ message: "No photo uploaded" });
+    }
+
+    // Store relative path in database
+    const relativePath = `/uploads/doctors/${req.file.filename}`;
+    console.log('Saving photo path:', relativePath);
+
+    // Check if doctor profile exists
+    let doctor = await prisma.doctor.findUnique({
+      where: { userId: req.user.id }
+    });
+
+    if (doctor) {
+      // Update existing doctor profile with photo
+      await prisma.doctor.update({
+        where: { id: doctor.id },
+        data: { photo: relativePath }
+      });
+      console.log('Updated existing doctor profile with photo');
+    } else {
+      // Create a minimal doctor profile with just the photo
+      // The rest will be filled in when they complete the profile form
+      doctor = await prisma.doctor.create({
+        data: {
+          userId: req.user.id,
+          specialty: 'Not specified',
+          experience: 0,
+          fee: 0,
+          photo: relativePath,
+          available: true,
+          approved: false
+        }
+      });
+      console.log('Created new doctor profile with photo');
+    }
+
+    // Return full URL for frontend use
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const fullUrl = `${baseUrl}${relativePath}`;
+
+    res.json({ 
+      message: "Photo uploaded successfully",
+      photo: relativePath,
+      photoUrl: fullUrl
+    });
+  } catch (err) {
+    console.error("Upload photo error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 // Book appointment (for patients)
 router.post("/book", auth, async (req, res) => {
@@ -315,10 +380,15 @@ router.put("/:id/cancel", auth, async (req, res) => {
 // Update doctor profile
 router.put("/doctor/profile", auth, async (req, res) => {
   try {
-    const { specialty, experience, fee, bio } = req.body;
+    const { specialty, experience, fee, bio, photo } = req.body;
 
-    // If doctor profile does not exist, allow the doctor user to create it using provided data
-    if (!req.user.doctor) {
+    // Check database directly for existing doctor profile (not just req.user.doctor which might be stale)
+    let existingDoctor = await prisma.doctor.findUnique({
+      where: { userId: req.user.id }
+    });
+
+    if (!existingDoctor) {
+      // No doctor profile exists - create new one
       if (req.user.role === 'DOCTOR') {
         if (!specialty) return res.status(400).json({ message: 'Specialty is required to create a profile' });
         const created = await prisma.doctor.create({
@@ -327,7 +397,8 @@ router.put("/doctor/profile", auth, async (req, res) => {
             specialty,
             ...(experience !== undefined ? { experience: parseInt(experience) } : { experience: 0 }),
             ...(fee !== undefined ? { fee: parseFloat(fee) } : { fee: 0 }),
-            ...(bio !== undefined ? { bio } : {})
+            ...(bio !== undefined ? { about: bio } : {}),
+            ...(photo !== undefined ? { photo } : {})
           },
           include: { user: { select: { name: true, email: true } } }
         });
@@ -336,13 +407,15 @@ router.put("/doctor/profile", auth, async (req, res) => {
       return res.status(403).json({ message: "Access denied. Doctor only." });
     }
 
+    // Doctor profile exists - update it (preserve existing photo if not provided)
     const updatedDoctor = await prisma.doctor.update({
-      where: { id: req.user.doctor.id },
+      where: { id: existingDoctor.id },
       data: {
         ...(specialty !== undefined ? { specialty } : {}),
         ...(experience !== undefined ? { experience: parseInt(experience) } : {}),
         ...(fee !== undefined ? { fee: parseFloat(fee) } : {}),
-        ...(bio !== undefined ? { bio } : {})
+        ...(bio !== undefined ? { about: bio } : {}),
+        ...(photo !== undefined ? { photo } : {})
       },
       include: { user: { select: { name: true, email: true } } }
     });

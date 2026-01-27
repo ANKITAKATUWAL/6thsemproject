@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { doctorsData } from "../data/doctors";
+import axios from "axios";
+
+// Default doctor image placeholder
+const defaultDoctorImage = "https://via.placeholder.com/150?text=Doctor";
 
 function Doctors() {
   const [showSidebar, setShowSidebar] = useState(false);
@@ -9,23 +12,40 @@ function Doctors() {
   const [feeFilter, setFeeFilter] = useState("");
   const [doctorsList, setDoctorsList] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Get unique specialties
-  const specialties = [...new Set(doctorsData.map((d) => d.specialty))];
+  // Get unique specialties from fetched doctors
+  const specialties = [...new Set(doctorsList.map((d) => d.specialty))];
 
+  // Fetch doctors from API
   useEffect(() => {
-    const mapped = doctorsData.map((doc) => ({
-      id: doc.id,
-      name: doc.name,
-      specialty: doc.specialty,
-      experience: doc.experience,
-      fee: doc.fee,
-      available: doc.available ?? true,
-      photo: doc.photo,
-      about: doc.about || "Experienced medical professional"
-    }));
-    setDoctorsList(mapped);
-    setFilteredDoctors(mapped);
+    const fetchDoctors = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get("http://localhost:5000/api/doctors");
+        const doctors = response.data.map((doc) => ({
+          id: doc.id,
+          name: doc.name,
+          specialty: doc.specialty,
+          experience: doc.experience,
+          fee: doc.fee,
+          available: doc.available ?? true,
+          photo: doc.photo || defaultDoctorImage,
+          about: doc.about || "Experienced medical professional"
+        }));
+        setDoctorsList(doctors);
+        setFilteredDoctors(doctors);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching doctors:", err);
+        setError("Failed to load doctors. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctors();
   }, []);
 
   useEffect(() => {
@@ -108,19 +128,40 @@ function Doctors() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {filteredDoctors.map((doctor) => (
-              <div key={doctor.id} className="bg-white shadow-lg rounded-lg p-4 flex flex-col items-center text-center hover:shadow-2xl transition">
-                <img src={doctor.photo} alt={doctor.name} className="w-32 h-32 rounded-full object-cover mb-4" />
-                <h3 className="text-lg font-bold">{doctor.name}</h3>
-                <p className="text-gray-600">{doctor.specialty}</p>
-                <p className="text-gray-600">{doctor.experience} yrs exp</p>
-                <p className="text-gray-600">${doctor.fee} per consultation</p>
-                <div className="flex gap-2 mt-3 w-full">
-                  <Link to={`/doctors/${doctor.id}`} className="flex-1 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition text-center">View Profile</Link>
-                  <Link to={`/book/${doctor.id}`} className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-center">Book Now</Link>
-                </div>
+            {loading ? (
+              <div className="col-span-3 text-center py-10">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+                <p className="mt-2 text-gray-600">Loading doctors...</p>
               </div>
-            ))}
+            ) : error ? (
+              <div className="col-span-3 text-center py-10">
+                <p className="text-red-500">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredDoctors.length === 0 ? (
+              <div className="col-span-3 text-center py-10">
+                <p className="text-gray-600">No doctors found matching your criteria.</p>
+              </div>
+            ) : (
+              filteredDoctors.map((doctor) => (
+                <div key={doctor.id} className="bg-white shadow-lg rounded-lg p-4 flex flex-col items-center text-center hover:shadow-2xl transition">
+                  <img src={doctor.photo} alt={doctor.name} className="w-32 h-32 rounded-full object-cover mb-4" />
+                  <h3 className="text-lg font-bold">{doctor.name}</h3>
+                  <p className="text-gray-600">{doctor.specialty}</p>
+                  <p className="text-gray-600">{doctor.experience} yrs exp</p>
+                  <p className="text-gray-600">${doctor.fee} per consultation</p>
+                  <div className="flex gap-2 mt-3 w-full">
+                    <Link to={`/doctors/${doctor.id}`} className="flex-1 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition text-center">View Profile</Link>
+                    <Link to={`/book/${doctor.id}`} className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-center">Book Now</Link>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </main>
       </div>
