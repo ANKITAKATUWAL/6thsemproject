@@ -255,21 +255,37 @@ function AdminDashboard() {
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+          <div 
+            onClick={() => setActiveTab('users')}
+            className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200"
+          >
             <div className="text-3xl font-bold text-blue-600 mb-2">{stats.totalUsers}</div>
             <div className="text-blue-800 font-medium">Total Users</div>
+            <div className="text-xs text-blue-500 mt-2">Click to view all users →</div>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+          <div 
+            onClick={() => setActiveTab('doctors')}
+            className="bg-green-50 border border-green-200 rounded-lg p-6 text-center cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200"
+          >
             <div className="text-3xl font-bold text-green-600 mb-2">{stats.totalDoctors}</div>
             <div className="text-green-800 font-medium">Total Doctors</div>
+            <div className="text-xs text-green-500 mt-2">Click to view all doctors →</div>
           </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 text-center">
+          <div 
+            onClick={() => setActiveTab('appointments')}
+            className="bg-purple-50 border border-purple-200 rounded-lg p-6 text-center cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200"
+          >
             <div className="text-3xl font-bold text-purple-600 mb-2">{stats.totalAppointments}</div>
             <div className="text-purple-800 font-medium">Total Appointments</div>
+            <div className="text-xs text-purple-500 mt-2">Click to view all appointments →</div>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+          <div 
+            onClick={() => setActiveTab('appointments')}
+            className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200"
+          >
             <div className="text-3xl font-bold text-yellow-600 mb-2">{stats.pendingAppointments}</div>
             <div className="text-yellow-800 font-medium">Pending Appointments</div>
+            <div className="text-xs text-yellow-500 mt-2">Click to view appointments →</div>
           </div>
         </div>
       )}
@@ -385,7 +401,7 @@ function AdminDashboard() {
                     <td className="px-4 py-3 text-sm text-gray-900">{doctor.user.email}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{doctor.specialty || 'Not set'}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{doctor.experience || 'Not set'} years</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">${doctor.fee || 'Not set'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">Rs. {doctor.fee || 'Not set'}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                         doctor.approved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'

@@ -185,7 +185,8 @@ router.get("/doctor", auth, async (req, res) => {
     const appointments = await prisma.appointment.findMany({
       where: { doctorId: req.user.doctor.id },
       include: {
-        patient: { select: { name: true, email: true } }
+        patient: { select: { name: true, email: true } },
+        payment: true
       },
       orderBy: { appointmentDate: "asc" }
     });
@@ -252,7 +253,8 @@ router.get("/patient", auth, async (req, res) => {
     const appointments = await prisma.appointment.findMany({
       where: { patientId: req.user.id },
       include: {
-        doctor: { include: { user: { select: { name: true } } } }
+        doctor: { include: { user: { select: { name: true } } } },
+        payment: true
       },
       orderBy: { appointmentDate: "asc" }
     });

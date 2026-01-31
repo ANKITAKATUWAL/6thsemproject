@@ -151,7 +151,7 @@ function UserDashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Max Fee ($)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Max Fee (Rs.)</label>
                   <input type="number" value={feeFilter} onChange={(e) => setFeeFilter(e.target.value)} placeholder="Enter max fee" className="w-full p-3 border border-gray-300 rounded-lg" />
                 </div>
               </div>
@@ -170,7 +170,7 @@ function UserDashboard() {
                         <p className="text-sm text-blue-600 font-medium mb-3">{doctor.specialty}</p>
                         <div className="space-y-2 text-sm text-gray-600 mb-4">
                           <div className="flex items-center justify-center"><span className="mr-2">👨‍⚕️</span>{doctor.experience} years experience</div>
-                          <div className="flex items-center justify-center"><span className="mr-2">💰</span>${doctor.fee} per consultation</div>
+                          <div className="flex items-center justify-center"><span className="mr-2">💰</span>Rs. {doctor.fee} per consultation</div>
                         </div>
                         <div className="flex gap-2">
                           <Link to={`/doctors/${doctor.id}`} className="flex-1 bg-gray-600 text-white text-center py-2 px-4 rounded-lg hover:bg-gray-700">View Profile</Link>

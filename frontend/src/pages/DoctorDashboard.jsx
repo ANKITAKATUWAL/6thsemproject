@@ -227,54 +227,22 @@ function DoctorDashboard() {
 
   if (!(user.role === 'DOCTOR' || user.doctor)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">Doctor privileges required.</p>
-        </div>
-        {patientModalOpen && patientDetails && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg w-full max-w-2xl p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold">Patient Details</h3>
-                <button onClick={() => setPatientModalOpen(false)} className="text-gray-500">Close</button>
-              </div>
-              <div>
-                <div className="mb-3">
-                  <div className="text-lg font-semibold">{patientDetails.patient?.name}</div>
-                  <div className="text-sm text-gray-600">{patientDetails.patient?.email}</div>
-                </div>
-
-                <div className="mb-4">
-                  <h4 className="font-medium mb-2">Appointment History</h4>
-                  <div className="space-y-2">
-                    {(patientDetails.appointments || []).map(a => (
-                      <div key={a.id} className="border rounded p-3 bg-gray-50">
-                        <div className="flex justify-between">
-                          <div>
-                            <div className="font-medium">{a.doctor?.user?.name || 'Doctor'}</div>
-                            <div className="text-sm text-gray-600">{new Date(a.appointmentDate).toLocaleString()}</div>
-                          </div>
-                          <div className="text-sm">Status: {a.status}</div>
-                        </div>
-                        {a.reason && <div className="text-sm text-gray-700 mt-2">Reason: {a.reason}</div>}
-                        {a.notes && <div className="text-sm text-gray-700 mt-1">Notes: {a.notes}</div>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center bg-white p-8 rounded-xl shadow-lg">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🚫</span>
           </div>
-        )}
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">Doctor privileges required to access this page.</p>
+        </div>
       </div>
     );
   }
 
   const tabs = [
     { id: 'appointments', label: 'Appointments', icon: '📅', badge: appointments.filter(a => a.status === 'PENDING').length || null },
-    { id: 'profile', label: 'Profile', icon: '👤' },
-    { id: 'availability', label: 'Availability', icon: '🕐' }
+    { id: 'profile', label: 'My Profile', icon: '👤' },
+    { id: 'availability', label: 'Schedule', icon: '🕐' }
   ];
 
   // Derived stats
@@ -289,362 +257,745 @@ function DoctorDashboard() {
     }
   }).length;
   const pendingRequests = appointments.filter(a => (a.status || '').toUpperCase() === 'PENDING').length;
+  const acceptedAppointments = appointments.filter(a => (a.status || '').toUpperCase() === 'ACCEPTED').length;
 
   const specialty = user.doctor?.specialty || profile.specialty || 'Not specified';
   const experience = user.doctor?.experience || profile.experience || '—';
   const fee = user.doctor?.fee || profile.fee || '—';
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        title={`Dr. ${user.name}`}
-        subtitle={`${specialty} • ${experience} yrs • ${fee !== '—' ? `$${fee}` : 'Fee not set'}`}
-        actions={
-          <button
-            onClick={() => {
-              logout();
-              navigate('/');
-            }}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium"
-          >
-            Logout
-          </button>
-        }
-      />
+  // Get greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="col-span-1">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-md p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-2xl">👨‍⚕️</div>
-                <div>
-                  <div className="text-sm text-gray-500">Doctor</div>
-                  <div className="text-lg font-semibold">Dr. {user.name}</div>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Professional Header */}
+      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {/* Doctor Avatar */}
+              <div className="relative">
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Profile"
+                    className="w-16 h-16 rounded-full object-cover border-3 border-white/30 shadow-lg"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center border-3 border-white/30">
+                    <span className="text-3xl">👨‍⚕️</span>
+                  </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
+              </div>
+              <div>
+                <p className="text-blue-100 text-sm">{getGreeting()}</p>
+                <h1 className="text-2xl font-bold">Dr. {user.name}</h1>
+                <div className="flex items-center gap-2 mt-1 text-blue-100 text-sm">
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full">{specialty}</span>
+                  <span>•</span>
+                  <span>{experience} yrs exp</span>
+                  {fee !== '—' && (
+                    <>
+                      <span>•</span>
+                      <span className="font-semibold">Rs. {fee}/visit</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-          <div>
-            <StatsCard title="Total Appointments" value={totalAppointments} icon="🔢" color="blue" />
-          </div>
-          <div>
-            <StatsCard title="Today's Appointments" value={todayAppointments} icon="📅" color="purple" />
-          </div>
-          <div>
-            <StatsCard title="Pending Requests" value={pendingRequests} icon="⏳" color="yellow" />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  logout();
+                  navigate('/');
+                }}
+                className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2 border border-white/20"
+              >
+                <span>🚪</span> Logout
+              </button>
+            </div>
           </div>
         </div>
-        <DashboardNav
-          tabs={tabs}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          className="mb-8"
-        />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Quick Stats Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 -mt-8">
+          <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">Total</p>
+                <p className="text-2xl font-bold text-gray-800">{totalAppointments}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-xl">📋</span>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">Today</p>
+                <p className="text-2xl font-bold text-gray-800">{todayAppointments}</p>
+              </div>
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <span className="text-xl">📅</span>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-yellow-500 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">Pending</p>
+                <p className="text-2xl font-bold text-gray-800">{pendingRequests}</p>
+              </div>
+              <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                <span className="text-xl">⏳</span>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-purple-500 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">Accepted</p>
+                <p className="text-2xl font-bold text-gray-800">{acceptedAppointments}</p>
+              </div>
+              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                <span className="text-xl">✅</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="bg-white rounded-xl shadow-md p-1.5 mb-6">
+          <div className="flex flex-wrap gap-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  flex items-center px-5 py-3 rounded-lg text-sm font-semibold transition-all duration-200
+                  ${activeTab === tab.id
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-100'
+                  }
+                `}
+              >
+                <span className="mr-2 text-lg">{tab.icon}</span>
+                {tab.label}
+                {tab.badge && (
+                  <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                    activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-red-500 text-white'
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Appointments Tab */}
         {activeTab === 'appointments' && (
           <div className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatsCard
-                title="Pending"
-                value={appointments.filter(a => a.status === 'PENDING').length}
-                icon="⏳"
-                color="yellow"
-                subtitle="Awaiting response"
-              />
-              <StatsCard
-                title="Accepted"
-                value={appointments.filter(a => a.status === 'ACCEPTED').length}
-                icon="✅"
-                color="green"
-                subtitle="Confirmed appointments"
-              />
-              <StatsCard
-                title="Rejected"
-                value={appointments.filter(a => a.status === 'REJECTED').length}
-                icon="❌"
-                color="red"
-                subtitle="Declined requests"
-              />
-              <StatsCard
-                title="Cancelled"
-                value={appointments.filter(a => a.status === 'CANCELLED').length}
-                icon="🚫"
-                color="gray"
-                subtitle="Cancelled appointments"
-              />
+            {/* Appointment Status Filter Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-4 border border-yellow-200 hover:shadow-md transition-all cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">⏳</span>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-yellow-700">{appointments.filter(a => a.status === 'PENDING').length}</p>
+                    <p className="text-yellow-600 text-sm font-medium">Pending</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 hover:shadow-md transition-all cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">✅</span>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-700">{appointments.filter(a => a.status === 'ACCEPTED').length}</p>
+                    <p className="text-green-600 text-sm font-medium">Accepted</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl p-4 border border-red-200 hover:shadow-md transition-all cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">❌</span>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-red-700">{appointments.filter(a => a.status === 'REJECTED').length}</p>
+                    <p className="text-red-600 text-sm font-medium">Rejected</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-all cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">🚫</span>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-700">{appointments.filter(a => a.status === 'CANCELLED').length}</p>
+                    <p className="text-gray-600 text-sm font-medium">Cancelled</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Appointments List */}
-            <DashboardCard
-              title="My Appointments"
-              actions={
-                <button
-                  onClick={fetchAppointments}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
-                >
-                  <span>🔄</span> Refresh
-                </button>
-              }
-            >
-              {loading ? (
-                <div className="space-y-4">
-                  <CardSkeleton />
-                  <CardSkeleton />
-                  <CardSkeleton />
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">My Appointments</h2>
+                    <p className="text-blue-100 text-sm">Manage your patient appointments</p>
+                  </div>
+                  <button
+                    onClick={fetchAppointments}
+                    className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2"
+                  >
+                    <span>🔄</span> Refresh
+                  </button>
                 </div>
-              ) : appointments.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">📅</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No appointments yet</h3>
-                  <p className="text-gray-600">Your upcoming appointments will appear here.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {appointments.map((appointment) => (
-                    <AppointmentCard
-                      key={appointment.id}
-                      appointment={appointment}
-                      onStatusUpdate={updateStatus}
-                      onViewPatient={openPatientDetails}
-                      userRole="doctor"
-                    />
-                  ))}
-                </div>
-              )}
-            </DashboardCard>
+              </div>
+              
+              <div className="p-6">
+                {loading ? (
+                  <div className="space-y-4">
+                    <CardSkeleton />
+                    <CardSkeleton />
+                    <CardSkeleton />
+                  </div>
+                ) : appointments.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-4xl">📅</span>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No appointments yet</h3>
+                    <p className="text-gray-500 max-w-sm mx-auto">Your upcoming appointments will appear here when patients book with you.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {appointments.map((appointment) => (
+                      <div key={appointment.id} className={`bg-white border rounded-xl p-5 hover:shadow-lg transition-all duration-200 ${
+                        appointment.status === 'PENDING' ? 'border-l-4 border-l-yellow-400 border-yellow-100' :
+                        appointment.status === 'ACCEPTED' ? 'border-l-4 border-l-green-400 border-green-100' :
+                        appointment.status === 'REJECTED' ? 'border-l-4 border-l-red-400 border-red-100' :
+                        'border-l-4 border-l-gray-400 border-gray-100'
+                      }`}>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-xl">👤</span>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-gray-900">{appointment.patient?.name}</h3>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                  appointment.status === 'ACCEPTED' ? 'bg-green-100 text-green-700' :
+                                  appointment.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {appointment.status}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-500 mb-2">{appointment.patient?.email}</p>
+                              <div className="flex flex-wrap items-center gap-3 text-sm">
+                                <span className="flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                  <span>📅</span> {new Date(appointment.appointmentDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                </span>
+                                <span className="flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                  <span>🕐</span> {appointment.time}
+                                </span>
+                                {/* Payment Status */}
+                                {appointment.payment && (
+                                  <span className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                                    appointment.payment.paymentStatus === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                    appointment.payment.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-red-100 text-red-700'
+                                  }`}>
+                                    {appointment.payment.paymentStatus === 'COMPLETED' ? '💳 Paid' :
+                                     appointment.payment.paymentStatus === 'PENDING' ? '💳 Payment Pending' :
+                                     '💳 Payment Failed'}
+                                    {appointment.payment.paymentMethod && ` (${appointment.payment.paymentMethod})`}
+                                  </span>
+                                )}
+                              </div>
+                              {appointment.reason && (
+                                <div className="mt-3 bg-blue-50 rounded-lg p-3 border border-blue-100">
+                                  <p className="text-sm text-blue-800"><span className="font-medium">Reason:</span> {appointment.reason}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col gap-2 md:items-end">
+                            {appointment.status === 'PENDING' && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => updateStatus(appointment.id, 'ACCEPTED')}
+                                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all font-medium shadow-sm hover:shadow flex items-center gap-1"
+                                >
+                                  <span>✓</span> Accept
+                                </button>
+                                <button
+                                  onClick={() => updateStatus(appointment.id, 'REJECTED')}
+                                  className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2 rounded-lg transition-all font-medium shadow-sm hover:shadow flex items-center gap-1"
+                                >
+                                  <span>✕</span> Reject
+                                </button>
+                              </div>
+                            )}
+                            <button
+                              onClick={() => openPatientDetails(appointment.patientId)}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline flex items-center gap-1"
+                            >
+                              View Patient Details →
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
         {/* Profile Tab */}
         {activeTab === 'profile' && (
-          <DashboardCard title="My Profile">
-            <div className="max-w-md space-y-6">
-              {!editingProfile ? (
-                <div className="space-y-4">
-                  {!profileExists && (
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
-                      <p className="text-yellow-800 font-medium">Complete Profile</p>
-                      <p className="text-sm text-gray-600">You haven't completed your doctor profile yet. Please go to the profile section to add your details.</p>
-                    </div>
-                  )}
-                  {/* Profile Photo Display */}
-                  <div className="flex flex-col items-center mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
-                    {photoPreview ? (
-                      <img
-                        src={photoPreview}
-                        alt="Profile"
-                        className="w-32 h-32 rounded-full object-cover border-4 border-blue-200 shadow-lg"
-                      />
-                    ) : (
-                      <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-300">
-                        <span className="text-gray-500 text-4xl">👨‍⚕️</span>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.name}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.email}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{profile.specialty || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{profile.experience || 'Not specified'} years</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Consultation Fee</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{profile.fee ? `$${profile.fee}` : 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-                    <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg min-h-[60px]">{profile.bio || 'No bio available'}</p>
-                  </div>
-                  <button
-                    onClick={() => setEditingProfile(true)}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    ✏️ Edit Profile
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={(e) => { e.preventDefault(); updateProfile(); }} className="space-y-4">
-                  {/* Photo Upload Section */}
-                  <div className="flex flex-col items-center mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
-                    {photoPreview ? (
-                      <img
-                        src={photoPreview}
-                        alt="Profile preview"
-                        className="w-32 h-32 rounded-full object-cover border-4 border-blue-200 shadow-lg mb-3"
-                      />
-                    ) : (
-                      <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-300 mb-3">
-                        <span className="text-gray-500 text-4xl">👨‍⚕️</span>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded border text-sm">
-                        <span>{photoFile ? 'Change Photo' : 'Select Photo'}</span>
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                          onChange={handlePhotoChange}
-                          className="hidden"
-                        />
-                      </label>
-                      {photoFile && (
-                        <button
-                          type="button"
-                          onClick={handlePhotoUpload}
-                          disabled={uploadingPhoto}
-                          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 text-sm"
-                        >
-                          {uploadingPhoto ? 'Uploading...' : 'Upload'}
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-gray-500 text-xs mt-2">Max: 5MB (JPEG, PNG, GIF, WebP)</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
-                    <input
-                      type="text"
-                      value={profile.specialty}
-                      onChange={(e) => setProfile({...profile, specialty: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Experience (years)</label>
-                    <input
-                      type="number"
-                      value={profile.experience}
-                      onChange={(e) => setProfile({...profile, experience: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Consultation Fee (USD)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={profile.fee}
-                      onChange={(e) => setProfile({...profile, fee: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-                    <textarea
-                      value={profile.bio}
-                      onChange={(e) => setProfile({...profile, bio: e.target.value})}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Tell patients about your background and expertise..."
-                    />
-                  </div>
-                  <div className="flex space-x-3">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    >
-                      💾 Save Changes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingProfile(false)}
-                      className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors font-medium"
-                    >
-                      ❌ Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+              <h2 className="text-xl font-bold text-white">My Profile</h2>
+              <p className="text-blue-100 text-sm">Manage your professional information</p>
             </div>
-          </DashboardCard>
+            
+            <div className="p-6">
+              <div className="max-w-2xl mx-auto">
+                {!editingProfile ? (
+                  <div className="space-y-6">
+                    {!profileExists && (
+                      <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl">
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl">⚠️</span>
+                          <div>
+                            <p className="text-yellow-800 font-semibold">Complete Your Profile</p>
+                            <p className="text-sm text-yellow-700 mt-1">Add your professional details to start receiving appointments from patients.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Profile Photo Display */}
+                    <div className="flex flex-col items-center py-6 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl">
+                      {photoPreview ? (
+                        <img
+                          src={photoPreview}
+                          alt="Profile"
+                          className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-xl"
+                        />
+                      ) : (
+                        <div className="w-36 h-36 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center border-4 border-white shadow-xl">
+                          <span className="text-gray-400 text-5xl">👨‍⚕️</span>
+                        </div>
+                      )}
+                      <h3 className="mt-4 text-xl font-bold text-gray-900">Dr. {user.name}</h3>
+                      <p className="text-gray-500">{profile.specialty || 'Specialty not set'}</p>
+                    </div>
+
+                    {/* Profile Details Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Full Name</label>
+                        <p className="text-gray-900 font-semibold">{user.name}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Email Address</label>
+                        <p className="text-gray-900 font-semibold">{user.email}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Specialty</label>
+                        <p className="text-gray-900 font-semibold">{profile.specialty || 'Not specified'}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Experience</label>
+                        <p className="text-gray-900 font-semibold">{profile.experience || '0'} years</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Consultation Fee</label>
+                        <p className="text-gray-900 font-semibold text-green-600">{profile.fee ? `Rs. ${profile.fee}` : 'Not set'}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</label>
+                        <p className="text-green-600 font-semibold flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span> Active
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Professional Bio</label>
+                      <p className="text-gray-700 leading-relaxed">{profile.bio || 'No bio available. Add a professional bio to help patients learn more about you.'}</p>
+                    </div>
+
+                    <button
+                      onClick={() => setEditingProfile(true)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 px-4 rounded-xl transition-all font-semibold shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <span>✏️</span> Edit Profile
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={(e) => { e.preventDefault(); updateProfile(); }} className="space-y-6">
+                    {/* Photo Upload Section */}
+                    <div className="flex flex-col items-center py-6 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl">
+                      {photoPreview ? (
+                        <img
+                          src={photoPreview}
+                          alt="Profile preview"
+                          className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-xl mb-4"
+                        />
+                      ) : (
+                        <div className="w-36 h-36 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center border-4 border-white shadow-xl mb-4">
+                          <span className="text-gray-400 text-5xl">👨‍⚕️</span>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <label className="cursor-pointer bg-white hover:bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 shadow-sm hover:shadow transition-all">
+                          <span>📷 {photoFile ? 'Change Photo' : 'Upload Photo'}</span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                            onChange={handlePhotoChange}
+                            className="hidden"
+                          />
+                        </label>
+                        {photoFile && (
+                          <button
+                            type="button"
+                            onClick={handlePhotoUpload}
+                            disabled={uploadingPhoto}
+                            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium shadow-sm"
+                          >
+                            {uploadingPhoto ? '⏳ Uploading...' : '✓ Save Photo'}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-gray-400 text-xs mt-2">Max: 5MB (JPEG, PNG, GIF, WebP)</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Specialty *</label>
+                        <input
+                          type="text"
+                          value={profile.specialty}
+                          onChange={(e) => setProfile({...profile, specialty: e.target.value})}
+                          placeholder="e.g., Cardiologist, Dermatologist"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Experience (years) *</label>
+                        <input
+                          type="number"
+                          value={profile.experience}
+                          onChange={(e) => setProfile({...profile, experience: e.target.value})}
+                          placeholder="e.g., 5"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Consultation Fee (USD) *</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={profile.fee}
+                          onChange={(e) => setProfile({...profile, fee: e.target.value})}
+                          placeholder="50.00"
+                          className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Professional Bio</label>
+                      <textarea
+                        value={profile.bio}
+                        onChange={(e) => setProfile({...profile, bio: e.target.value})}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                        placeholder="Tell patients about your background, expertise, and approach to healthcare..."
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-3 px-4 rounded-xl transition-all font-semibold shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <span>💾</span> Save Changes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingProfile(false)}
+                        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl transition-all font-semibold flex items-center justify-center gap-2"
+                      >
+                        <span>✕</span> Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Availability Tab */}
         {activeTab === 'availability' && (
-          <DashboardCard title="My Availability">
-            <div className="space-y-6">
-              <div className="mb-4">
-                <label className="flex items-center gap-3">
-                  <input type="checkbox" checked={availabilityState?.enabled ?? true} onChange={(e) => setAvailabilityState(s => ({ ...(s||{}), enabled: e.target.checked }))} />
-                  <span className="text-sm">Availability ON</span>
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Working days</label>
-                <div className="flex gap-2 flex-wrap">
-                  {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, idx) => (
-                    <label key={d} className={`px-3 py-1 rounded border ${availabilityState?.workingDays?.includes(idx) ? 'bg-blue-600 text-white' : 'bg-white'}`}>
-                      <input type="checkbox" className="hidden" checked={availabilityState?.workingDays?.includes(idx)} onChange={() => {
-                        const arr = new Set(availabilityState?.workingDays || []);
-                        if (arr.has(idx)) arr.delete(idx); else arr.add(idx);
-                        setAvailabilityState(s => ({ ...(s||{}), workingDays: Array.from(arr) }));
-                      }} />
-                      {d}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Time slots</label>
-                <div className="flex gap-2 flex-wrap">
-                  {(availabilityState?.timeSlots || availability).map((t) => (
-                    <div key={t} className="px-3 py-1 bg-gray-100 rounded">{t}</div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Disabled dates</label>
-                <div className="flex items-center gap-2">
-                  <input type="date" id="addDisabled" className="border p-2 rounded" />
-                  <button onClick={() => {
-                    const input = document.getElementById('addDisabled');
-                    if (!input || !input.value) return;
-                    const date = input.value;
-                    const arr = new Set(availabilityState?.disabledDates || []);
-                    arr.add(date);
-                    setAvailabilityState(s => ({ ...(s||{}), disabledDates: Array.from(arr) }));
-                    input.value = '';
-                  }} className="bg-blue-600 text-white px-3 py-1 rounded">Add</button>
-                </div>
-                <div className="mt-3 flex gap-2 flex-wrap">
-                  {(availabilityState?.disabledDates || []).map(d => (
-                    <div key={d} className="px-3 py-1 bg-red-100 rounded flex items-center gap-2">
-                      <span className="text-sm">{d}</span>
-                      <button onClick={() => setAvailabilityState(s => ({ ...(s||{}), disabledDates: (s.disabledDates||[]).filter(x => x !== d) }))} className="text-red-600">✕</button>
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+              <h2 className="text-xl font-bold text-white">Schedule & Availability</h2>
+              <p className="text-blue-100 text-sm">Configure your working hours and availability</p>
+            </div>
+            
+            <div className="p-6">
+              <div className="max-w-2xl mx-auto space-y-8">
+                {/* Availability Toggle */}
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                      <span className="text-2xl">🟢</span>
                     </div>
-                  ))}
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Availability Status</h3>
+                      <p className="text-sm text-gray-500">Toggle to accept new appointment requests</p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={availabilityState?.enabled ?? true} 
+                      onChange={(e) => setAvailabilityState(s => ({ ...(s||{}), enabled: e.target.checked }))} 
+                      className="sr-only peer" 
+                    />
+                    <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+                    <span className="ml-3 text-sm font-medium text-gray-700">{availabilityState?.enabled !== false ? 'Active' : 'Inactive'}</span>
+                  </label>
                 </div>
-              </div>
 
-              <div className="flex gap-2">
-                <button onClick={() => saveAvailability(availabilityState)} className="bg-green-600 text-white px-4 py-2 rounded">Save</button>
-                <button onClick={() => fetchAvailability()} className="bg-gray-600 text-white px-4 py-2 rounded">Reload</button>
+                {/* Working Days */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <span>📅</span> Working Days
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, idx) => (
+                      <label 
+                        key={d} 
+                        className={`px-4 py-2.5 rounded-xl cursor-pointer transition-all font-medium ${
+                          availabilityState?.workingDays?.includes(idx) 
+                            ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md' 
+                            : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                      >
+                        <input 
+                          type="checkbox" 
+                          className="hidden" 
+                          checked={availabilityState?.workingDays?.includes(idx)} 
+                          onChange={() => {
+                            const arr = new Set(availabilityState?.workingDays || []);
+                            if (arr.has(idx)) arr.delete(idx); else arr.add(idx);
+                            setAvailabilityState(s => ({ ...(s||{}), workingDays: Array.from(arr) }));
+                          }} 
+                        />
+                        {d}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time Slots */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <span>🕐</span> Available Time Slots
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(availabilityState?.timeSlots || availability).length > 0 ? (
+                      (availabilityState?.timeSlots || availability).map((t) => (
+                        <div key={t} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 font-medium shadow-sm">
+                          {t}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 text-sm">No time slots configured</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Disabled Dates */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <span>🚫</span> Blocked Dates
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">Add dates when you're unavailable for appointments</p>
+                  <div className="flex items-center gap-3 mb-4">
+                    <input 
+                      type="date" 
+                      id="addDisabled" 
+                      className="border border-gray-200 px-4 py-2.5 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    />
+                    <button 
+                      onClick={() => {
+                        const input = document.getElementById('addDisabled');
+                        if (!input || !input.value) return;
+                        const date = input.value;
+                        const arr = new Set(availabilityState?.disabledDates || []);
+                        arr.add(date);
+                        setAvailabilityState(s => ({ ...(s||{}), disabledDates: Array.from(arr) }));
+                        input.value = '';
+                      }} 
+                      className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all"
+                    >
+                      + Add Date
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(availabilityState?.disabledDates || []).length > 0 ? (
+                      (availabilityState?.disabledDates || []).map(d => (
+                        <div key={d} className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                          <span className="text-red-700 font-medium text-sm">{new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          <button 
+                            onClick={() => setAvailabilityState(s => ({ ...(s||{}), disabledDates: (s.disabledDates||[]).filter(x => x !== d) }))} 
+                            className="text-red-500 hover:text-red-700 font-bold"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-400 text-sm">No blocked dates</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    onClick={() => saveAvailability(availabilityState)} 
+                    className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>💾</span> Save Changes
+                  </button>
+                  <button 
+                    onClick={() => fetchAvailability()} 
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>🔄</span> Reset
+                  </button>
+                </div>
               </div>
             </div>
-          </DashboardCard>
+          </div>
         )}
       </div>
+
+      {/* Patient Details Modal */}
+      {patientModalOpen && patientDetails && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-white">Patient Details</h3>
+                <button 
+                  onClick={() => setPatientModalOpen(false)} 
+                  className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-all"
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
+                  <span className="text-3xl">👤</span>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-gray-900">{patientDetails.patient?.name}</div>
+                  <div className="text-gray-500">{patientDetails.patient?.email}</div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>📋</span> Appointment History
+                </h4>
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                  {(patientDetails.appointments || []).length > 0 ? (
+                    (patientDetails.appointments || []).map(a => (
+                      <div key={a.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-semibold text-gray-900">{a.doctor?.user?.name || 'Doctor'}</div>
+                            <div className="text-sm text-gray-500">
+                              {new Date(a.appointmentDate).toLocaleDateString('en-US', { 
+                                weekday: 'short', 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                              })} at {a.time}
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            a.status === 'ACCEPTED' ? 'bg-green-100 text-green-700' :
+                            a.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                            a.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {a.status}
+                          </span>
+                        </div>
+                        {a.reason && (
+                          <div className="text-sm text-gray-600 bg-white p-2 rounded-lg mt-2">
+                            <span className="font-medium">Reason:</span> {a.reason}
+                          </div>
+                        )}
+                        {a.notes && (
+                          <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded-lg mt-2">
+                            <span className="font-medium">Notes:</span> {a.notes}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No appointment history</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

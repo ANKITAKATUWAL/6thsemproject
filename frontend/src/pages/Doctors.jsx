@@ -121,7 +121,7 @@ function Doctors() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Max Fee ($)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Max Fee (Rs.)</label>
                 <input type="number" value={feeFilter} onChange={(e) => setFeeFilter(e.target.value)} placeholder="Enter max fee" className="w-full p-3 border border-gray-300 rounded-lg" />
               </div>
             </div>
@@ -154,7 +154,7 @@ function Doctors() {
                   <h3 className="text-lg font-bold">{doctor.name}</h3>
                   <p className="text-gray-600">{doctor.specialty}</p>
                   <p className="text-gray-600">{doctor.experience} yrs exp</p>
-                  <p className="text-gray-600">${doctor.fee} per consultation</p>
+                  <p className="text-gray-600">Rs. {doctor.fee} per consultation</p>
                   <div className="flex gap-2 mt-3 w-full">
                     <Link to={`/doctors/${doctor.id}`} className="flex-1 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition text-center">View Profile</Link>
                     <Link to={`/book/${doctor.id}`} className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-center">Book Now</Link>

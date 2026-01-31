@@ -11,6 +11,7 @@ import DoctorDashboard from "./pages/DoctorDashboard"; // new
 import DoctorDetails from "./pages/DoctorDetails";
 import AdminDashboard from "./pages/AdminDashboard"; // new
 import MyDashboard from "./pages/MyDashboard";
+import PaymentVerify from "./pages/PaymentVerify"; // Payment verification page
 import RequireAuth from './components/RequireAuth';
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -26,6 +27,7 @@ function App() {
           <Route path="/doctors" element={<Doctors />} />
           <Route path="/doctors/:id" element={<DoctorProfile />} />
           <Route path="/book/:id" element={<BookAppointment />} /> {/* new */}
+          <Route path="/payment/verify" element={<PaymentVerify />} /> {/* Payment verification */}
           <Route path="/doctor-dashboard" element={
             <RequireAuth allowedRoles={["DOCTOR"]}>
               <DoctorDashboard />

@@ -170,15 +170,17 @@ router.put("/appointments/:id/status", auth, requireAdmin, async (req, res) => {
 // Get system statistics
 router.get("/stats", auth, requireAdmin, async (req, res) => {
   try {
-    const [userCount, doctorCount, appointmentCount, pendingAppointments] = await Promise.all([
-      prisma.user.count(),
+    const [patientCount, doctorCount, appointmentCount, pendingAppointments] = await Promise.all([
+      // Count only PATIENT users (excluding ADMIN and DOCTOR roles)
+      prisma.user.count({ where: { role: 'PATIENT' } }),
       prisma.doctor.count(),
-      prisma.appointment.count(),
+      // Count only ACCEPTED appointments
+      prisma.appointment.count({ where: { status: 'ACCEPTED' } }),
       prisma.appointment.count({ where: { status: 'PENDING' } })
     ]);
 
     res.json({
-      totalUsers: userCount,
+      totalUsers: patientCount,
       totalDoctors: doctorCount,
       totalAppointments: appointmentCount,
       pendingAppointments

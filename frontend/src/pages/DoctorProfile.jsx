@@ -73,7 +73,7 @@ function DoctorProfile() {
           <h1 className="text-3xl font-bold text-gray-800">{doctor.name}</h1>
           <p className="text-gray-600 mt-2"><strong>Specialty:</strong> {doctor.specialty}</p>
           <p className="text-gray-600"><strong>Experience:</strong> {doctor.experience} years</p>
-          <p className="text-gray-600"><strong>Fee:</strong> ${doctor.fee}</p>
+          <p className="text-gray-600"><strong>Fee:</strong> Rs. {doctor.fee}</p>
           {doctor.about && (
             <p className="text-gray-600 mt-4"><strong>About:</strong> {doctor.about}</p>
           )}

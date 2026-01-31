@@ -137,7 +137,7 @@ export const AppointmentCard = ({
             </div>
             <div className="flex items-center text-sm text-gray-600">
               <span className="mr-2">💰</span>
-              ${appointment.doctor?.fee || 'N/A'}
+              Rs. {appointment.doctor?.fee || 'N/A'}
             </div>
           </div>
 

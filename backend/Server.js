@@ -8,6 +8,7 @@ import authRoutes from "./src/routes/auth.js";
 import appointmentRoutes from "./src/routes/appointments.js";
 import adminRoutes from "./src/routes/admin.js";
 import doctorRoutes from "./src/routes/doctors.js";
+import paymentRoutes from "./src/routes/payments.js";
 import { prisma } from "./src/libs/prisma.js";
 
 // Get __dirname equivalent in ES modules
@@ -33,6 +34,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/doctors", doctorRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Test route
 app.get("/", (req, res) => {
