@@ -47,9 +47,8 @@ function Home() {
       {/* Navbar */}
       <Navbar />
 
-      {/* Page content wrapper with padding for fixed navbar */}
-      <div className="pt-20">
-        
+      {/* Page content wrapper with no extra gap for sticky/fixed navbar */}
+      <div className="mt-0 pt-0">
         {/* ========== HERO SECTION ========== */}
         <section className="relative bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 text-white overflow-hidden">
           {/* Decorative Elements */}

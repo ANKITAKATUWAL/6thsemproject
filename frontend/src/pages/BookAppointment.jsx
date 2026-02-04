@@ -136,7 +136,7 @@ function BookAppointment() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
+    <div className="max-w-2xl mx-auto p-6 bg-white shadow-lg rounded-lg">
       <Link to={`/doctors`} className="text-blue-600 hover:underline mb-4 inline-block">
         &larr; Back to Doctors
       </Link>

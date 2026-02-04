@@ -429,7 +429,13 @@ function DoctorDashboard() {
                     <CardSkeleton />
                   </div>
                 ) : (() => {
-                  const doctorAppointments = appointments.filter(a => a.doctorId === user.id);
+                  // Logging for debugging
+                  console.log('DoctorDashboard: user:', user);
+                  // Use user.doctor if available, fallback to profile or user
+                  const doctorIdToUse = (user?.doctor?.id) || (profile?.id) || user.id;
+                  console.log('DoctorDashboard: Filtering appointments with doctorId:', doctorIdToUse);
+                  console.log('DoctorDashboard: appointments:', appointments);
+                  const doctorAppointments = appointments.filter(a => a.doctorId === doctorIdToUse);
                   if (doctorAppointments.length === 0) {
                     return (
                       <div className="text-center py-16">

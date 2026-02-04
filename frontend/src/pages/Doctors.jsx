@@ -66,7 +66,7 @@ function Doctors() {
   }, [doctorsList, specialtyFilter, availabilityFilter, feeFilter]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Header Section */}
       <div className="max-w-7xl mx-auto px-4 mb-8 animate-fade-in">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">

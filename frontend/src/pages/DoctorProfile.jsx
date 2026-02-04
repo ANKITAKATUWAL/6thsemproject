@@ -16,6 +16,7 @@ function DoctorProfile() {
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
+  const [bookedSlots, setBookedSlots] = useState([]);
   // Mock ratings and reviews
   const [reviews, setReviews] = useState([
     {
@@ -76,6 +77,23 @@ function DoctorProfile() {
     fetchDoctor();
   }, [id]);
 
+  // Fetch booked slots for selected date
+  useEffect(() => {
+    const fetchBookedSlots = async () => {
+      if (!selectedDate || !doctor?.id) {
+        setBookedSlots([]);
+        return;
+      }
+      try {
+        const response = await axios.get(`http://localhost:5000/api/appointments/booked-slots?doctorId=${doctor.id}&date=${selectedDate}`);
+        setBookedSlots(response.data.bookedSlots || []);
+      } catch {
+        setBookedSlots([]);
+      }
+    };
+    fetchBookedSlots();
+  }, [selectedDate, doctor]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center mt-20">
@@ -118,8 +136,22 @@ function DoctorProfile() {
     return days;
   };
 
+  // Group time slots by morning/afternoon/evening
+  const groupTimeSlots = (slots) => {
+    const morning = [];
+    const afternoon = [];
+    const evening = [];
+    slots.forEach(slot => {
+      const hour = parseInt(slot.split(':')[0], 10);
+      if (hour < 12) morning.push(slot);
+      else if (hour < 17) afternoon.push(slot);
+      else evening.push(slot);
+    });
+    return { morning, afternoon, evening };
+  };
+
   return (
-    <div className="max-w-7xl mx-auto mt-10 p-0 md:p-0 bg-gradient-to-br from-blue-50 via-white to-blue-100 shadow-2xl rounded-2xl animate-fade-in">
+    <div className="max-w-7xl mx-auto bg-gradient-to-br from-blue-50 via-white to-blue-100 shadow-2xl rounded-2xl animate-fade-in">
       {/* Back Button */}
       <div className="flex justify-end pt-8 pr-8">
         <button
@@ -165,30 +197,58 @@ function DoctorProfile() {
             {/* Desktop Sticky Panel */}
             <div className="hidden md:block w-full md:w-96 md:sticky md:top-10 h-fit bg-white border border-blue-200 rounded-2xl shadow-xl p-6 flex flex-col gap-4 animate-pop-in self-end md:self-start">
               <h2 className="text-2xl font-bold text-blue-700 mb-2">Book Appointment</h2>
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Select Date</label>
-                  <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full p-2 border border-blue-200 rounded-xl">
-                    <option value="">Choose date</option>
-                    {getNext7Days().map(date => (
-                      <option key={date} value={date}>{date}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Select Time Slot</label>
-                  <select value={selectedTime} onChange={e => setSelectedTime(e.target.value)} className="w-full p-2 border border-blue-200 rounded-xl">
-                    <option value="">Choose time</option>
-                    {doctor.timeSlots && doctor.timeSlots.map((slot, idx) => (
-                      <option key={idx} value={slot}>{slot}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Select Date</label>
+                <select value={selectedDate} onChange={e => { setSelectedDate(e.target.value); setSelectedTime(""); }} className="w-full p-2 border border-blue-200 rounded-xl">
+                  <option value="">Choose date</option>
+                  {getNext7Days().map(date => (
+                    <option key={date} value={date}>{date}</option>
+                  ))}
+                </select>
               </div>
+              {selectedDate && (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Select Time Slot</label>
+                  {doctor.timeSlots ? (
+                    (() => {
+                      const grouped = groupTimeSlots(doctor.timeSlots);
+                      return (
+                        <div className="space-y-2">
+                          {Object.entries(grouped).map(([period, slots]) => (
+                            slots.length > 0 && (
+                              <div key={period}>
+                                <span className="font-semibold text-blue-600 capitalize">{period}</span>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  {slots.map(slot => {
+                                    const isBooked = bookedSlots.includes(slot);
+                                    return (
+                                      <button
+                                        key={slot}
+                                        type="button"
+                                        disabled={isBooked}
+                                        className={`px-3 py-1 rounded-full border font-semibold text-sm shadow transition ${selectedTime === slot ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'} ${isBooked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-200'}`}
+                                        onClick={() => setSelectedTime(slot)}
+                                      >
+                                        {slot} {isBooked ? '(Booked)' : ''}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-gray-500">No time slots available.</span>
+                  )}
+                </div>
+              )}
               <button
                 onClick={handleBookAppointment}
-                className={`mt-2 px-6 py-3 rounded-xl font-bold shadow-xl transition-all duration-200 text-lg ${doctor.available ? 'bg-gradient-to-r from-green-500 to-green-700 text-white hover:scale-105 hover:shadow-2xl' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                disabled={!doctor.available}
+                className={`mt-2 px-6 py-3 rounded-xl font-bold shadow-xl transition-all duration-200 text-lg ${doctor.available && selectedTime ? 'bg-gradient-to-r from-green-500 to-green-700 text-white hover:scale-105 hover:shadow-2xl' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                disabled={!doctor.available || !selectedTime}
               >
                 {doctor.available ? 'Book Now' : 'Not Available'}
               </button>
@@ -198,30 +258,58 @@ function DoctorProfile() {
             <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-blue-200 shadow-2xl z-50 animate-pop-in">
               <div className="p-4 flex flex-col gap-2">
                 <h2 className="text-lg font-bold text-blue-700 mb-1">Book Appointment</h2>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Date</label>
-                    <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full p-2 border border-blue-200 rounded-xl text-xs">
-                      <option value="">Date</option>
-                      {getNext7Days().map(date => (
-                        <option key={date} value={date}>{date}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Time</label>
-                    <select value={selectedTime} onChange={e => setSelectedTime(e.target.value)} className="w-full p-2 border border-blue-200 rounded-xl text-xs">
-                      <option value="">Time</option>
-                      {doctor.timeSlots && doctor.timeSlots.map((slot, idx) => (
-                        <option key={idx} value={slot}>{slot}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="mb-2">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Date</label>
+                  <select value={selectedDate} onChange={e => { setSelectedDate(e.target.value); setSelectedTime(""); }} className="w-full p-2 border border-blue-200 rounded-xl text-xs">
+                    <option value="">Date</option>
+                    {getNext7Days().map(date => (
+                      <option key={date} value={date}>{date}</option>
+                    ))}
+                  </select>
                 </div>
+                {selectedDate && (
+                  <div className="mb-2">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Time</label>
+                    {doctor.timeSlots ? (
+                      (() => {
+                        const grouped = groupTimeSlots(doctor.timeSlots);
+                        return (
+                          <div className="space-y-1">
+                            {Object.entries(grouped).map(([period, slots]) => (
+                              slots.length > 0 && (
+                                <div key={period}>
+                                  <span className="font-semibold text-blue-600 capitalize text-xs">{period}</span>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {slots.map(slot => {
+                                      const isBooked = bookedSlots.includes(slot);
+                                      return (
+                                        <button
+                                          key={slot}
+                                          type="button"
+                                          disabled={isBooked}
+                                          className={`px-2 py-1 rounded-full border font-semibold text-xs shadow transition ${selectedTime === slot ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'} ${isBooked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-200'}`}
+                                          onClick={() => setSelectedTime(slot)}
+                                        >
+                                          {slot} {isBooked ? '(Booked)' : ''}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )
+                            ))}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-gray-500">No time slots available.</span>
+                    )}
+                  </div>
+                )}
                 <button
                   onClick={handleBookAppointment}
-                  className={`mt-2 px-4 py-2 rounded-xl font-bold shadow-xl transition-all duration-200 text-base ${doctor.available ? 'bg-gradient-to-r from-green-500 to-green-700 text-white hover:scale-105 hover:shadow-2xl' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                  disabled={!doctor.available}
+                  className={`mt-2 px-4 py-2 rounded-xl font-bold shadow-xl transition-all duration-200 text-base ${doctor.available && selectedTime ? 'bg-gradient-to-r from-green-500 to-green-700 text-white hover:scale-105 hover:shadow-2xl' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                  disabled={!doctor.available || !selectedTime}
                 >
                   {doctor.available ? 'Book Now' : 'Not Available'}
                 </button>
