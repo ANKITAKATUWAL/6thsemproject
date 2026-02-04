@@ -119,26 +119,26 @@ export default function DoctorDetails() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto mt-12 p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-semibold mb-4">Complete Your Doctor Profile</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="max-w-3xl mx-auto mt-12 p-8 bg-gradient-to-br from-blue-50 via-white to-blue-100 rounded-2xl shadow-2xl animate-fade-in">
+      <h2 className="text-3xl font-extrabold mb-6 text-blue-700 drop-shadow-lg">Complete Your Doctor Profile</h2>
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photo Upload Section */}
-        <div className="flex flex-col items-center mb-6">
-          <label className="block text-sm font-medium mb-2">Profile Photo</label>
+        <div className="flex flex-col items-center mb-8">
+          <label className="block text-sm font-semibold mb-2">Profile Photo</label>
           <div className="flex flex-col items-center gap-4">
             {photoPreview ? (
               <img
                 src={photoPreview}
                 alt="Photo preview"
-                className="w-32 h-32 rounded-full object-cover border-4 border-blue-200"
+                className="w-32 h-32 rounded-full object-cover border-4 border-blue-200 shadow-md"
               />
             ) : (
-              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-300">
+              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-300 shadow-md">
                 <span className="text-gray-500 text-sm text-center">No photo<br/>selected</span>
               </div>
             )}
             <div className="flex gap-2">
-              <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded border">
+              <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl border font-semibold">
                 <span>{photo ? 'Change Photo' : 'Select Photo'}</span>
                 <input
                   type="file"
@@ -152,7 +152,7 @@ export default function DoctorDetails() {
                   type="button"
                   onClick={handlePhotoUpload}
                   disabled={uploading}
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+                  className="bg-gradient-to-r from-green-500 to-green-700 text-white px-4 py-2 rounded-xl font-semibold shadow-md hover:scale-105 hover:shadow-xl transition-all duration-200 disabled:opacity-50"
                 >
                   {uploading ? 'Uploading...' : 'Upload Photo'}
                 </button>
@@ -166,37 +166,43 @@ export default function DoctorDetails() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Name</label>
-          <input name="name" value={form.name} onChange={handleChange} className="w-full border rounded px-3 py-2" />
+          <label className="block text-sm font-semibold">Name</label>
+          <input name="name" value={form.name} onChange={handleChange} className="w-full border border-blue-200 rounded-xl px-3 py-2" />
         </div>
         <div>
-          <label className="block text-sm font-medium">Specialty</label>
-          <input name="specialty" value={form.specialty} onChange={handleChange} required className="w-full border rounded px-3 py-2" />
+          <label className="block text-sm font-semibold">Specialty</label>
+          <input name="specialty" value={form.specialty} onChange={handleChange} required className="w-full border border-blue-200 rounded-xl px-3 py-2" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium">Experience (years)</label>
-            <input name="experience" value={form.experience} onChange={handleChange} type="number" className="w-full border rounded px-3 py-2" />
+            <label className="block text-sm font-semibold">Experience (years)</label>
+            <input name="experience" value={form.experience} onChange={handleChange} type="number" className="w-full border border-blue-200 rounded-xl px-3 py-2" />
           </div>
           <div>
-            <label className="block text-sm font-medium">Consultation Fee</label>
-            <input name="fee" value={form.fee} onChange={handleChange} type="number" className="w-full border rounded px-3 py-2" />
+            <label className="block text-sm font-semibold">Consultation Fee</label>
+            <input name="fee" value={form.fee} onChange={handleChange} type="number" className="w-full border border-blue-200 rounded-xl px-3 py-2" />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium">Availability (comma separated times)</label>
-          <input name="availability" value={form.availability} onChange={handleChange} placeholder="09:00,10:00,14:00" className="w-full border rounded px-3 py-2" />
+          <label className="block text-sm font-semibold">Availability <span className="text-xs text-gray-500">(comma separated times)</span></label>
+          <input name="availability" value={form.availability} onChange={handleChange} placeholder="09:00,10:00,14:00" className="w-full border border-blue-200 rounded-xl px-3 py-2" />
+          <p className="text-xs text-blue-500 mt-1">Example: 09:00, 10:00, 14:00</p>
         </div>
         <div>
-          <label className="block text-sm font-medium">About / Bio</label>
-          <textarea name="bio" value={form.bio} onChange={handleChange} className="w-full border rounded px-3 py-2" rows={4} />
+          <label className="block text-sm font-semibold">About / Bio</label>
+          <textarea name="bio" value={form.bio} onChange={handleChange} className="w-full border border-blue-200 rounded-xl px-3 py-2" rows={4} />
         </div>
         <div className="flex justify-end">
-          <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          <button type="submit" disabled={loading} className="bg-gradient-to-r from-blue-600 to-blue-400 text-white px-6 py-2 rounded-xl font-bold shadow-md hover:scale-105 hover:shadow-xl transition-all duration-200">
             {loading ? 'Saving...' : 'Save Profile'}
           </button>
         </div>
       </form>
+      {/* Animations (Tailwind custom classes, add to your CSS if not present) */}
+      <style>{`
+        .animate-fade-in { animation: fadeIn 1s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
     </div>
   );
 }

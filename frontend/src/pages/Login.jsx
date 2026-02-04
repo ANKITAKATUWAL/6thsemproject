@@ -50,13 +50,14 @@ function Login() {
       // If server provided a role, require the admin to select the same role
       if (serverRole) {
         // Special-case admin email: treat as ADMIN on server
-        if (userEmail === 'admin@example.com' && role !== 'ADMIN') {
+        if (userEmail === 'admin@example.com' && role.toUpperCase() !== 'ADMIN') {
           toast.error('This account is an admin account — please select Admin and try again.');
           setLoading(false);
           return;
         }
 
-        if (serverRole !== role) {
+        // Compare roles case-insensitively
+        if (serverRole.toUpperCase() !== role.toUpperCase()) {
           toast.error(`Selected role does not match account role (${serverRole}). Please select the correct role.`);
           setLoading(false);
           return;
@@ -75,12 +76,22 @@ function Login() {
       login(clientUser);
       localStorage.setItem('role', (clientUser.role || '').toString().toUpperCase());
 
+      
+        // Check for pending booking after login
+        const pendingBooking = localStorage.getItem('pendingBooking');
+        if (pendingBooking) {
+          const { doctorId, date, time } = JSON.parse(pendingBooking);
+          localStorage.removeItem('pendingBooking');
+          navigate(`/book/${doctorId}?date=${date}&time=${time}`);
+          return;
+        }
       // Redirect based on resolved role
       const resolvedRole = (clientUser.role || '').toString().toUpperCase();
+      console.log('Login resolvedRole:', resolvedRole, 'doctor profile:', clientUser.doctor);
       if (resolvedRole === 'ADMIN') {
         toast.success('Admin login successful!');
         navigate('/admin-dashboard');
-      } else if (resolvedRole === 'DOCTOR' || clientUser.doctor) {
+      } else if (resolvedRole === 'DOCTOR' || !!clientUser.doctor) {
         // Check whether doctor profile exists before navigating to dashboard
         try {
           await axios.get('http://localhost:5000/api/appointments/doctor/profile', { withCredentials: true });

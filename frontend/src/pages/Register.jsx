@@ -6,11 +6,13 @@ import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import Cookies from 'js-cookie';
 
+
 function Register() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: ''
+    password: '',
+    gender: ''
   });
   const [role, setRole] = useState('PATIENT');
   const [loading, setLoading] = useState(false);
@@ -33,6 +35,9 @@ function Register() {
     try {
       // include selected role in registration payload
       const payload = { ...formData, role };
+      if (role !== 'DOCTOR') {
+        delete payload.gender;
+      }
       const response = await authService.register(payload);
 
       // store token if returned
@@ -44,6 +49,15 @@ function Register() {
       if (!registeredUser.role) registeredUser.role = role;
       login(registeredUser);
       localStorage.setItem('role', (registeredUser.role || '').toString().toUpperCase());
+
+      // Check for pending booking after login
+      const pendingBooking = localStorage.getItem('pendingBooking');
+      if (pendingBooking) {
+        const { doctorId, date, time } = JSON.parse(pendingBooking);
+        localStorage.removeItem('pendingBooking');
+        navigate(`/book/${doctorId}?date=${date}&time=${time}`);
+        return;
+      }
 
       // If doctor, check profile existence like the login flow
       const resolvedRole = (registeredUser.role || '').toString().toUpperCase();
@@ -70,6 +84,7 @@ function Register() {
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center">Register</h2>
 
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Register as</label>
@@ -78,6 +93,7 @@ function Register() {
               <option value="DOCTOR">Doctor</option>
             </select>
           </div>
+
           <input
             type="text"
             name="name"
@@ -87,6 +103,24 @@ function Register() {
             required
             className="w-full border p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+
+          {role === 'DOCTOR' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                required
+                className="w-full border p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          )}
 
           <input
             type="email"

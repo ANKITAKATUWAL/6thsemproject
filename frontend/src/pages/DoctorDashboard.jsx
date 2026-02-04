@@ -405,61 +405,13 @@ function DoctorDashboard() {
         {/* Appointments Tab */}
         {activeTab === 'appointments' && (
           <div className="space-y-6">
-            {/* Appointment Status Filter Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-4 border border-yellow-200 hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">⏳</span>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-yellow-700">{appointments.filter(a => a.status === 'PENDING').length}</p>
-                    <p className="text-yellow-600 text-sm font-medium">Pending</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">✅</span>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-700">{appointments.filter(a => a.status === 'ACCEPTED').length}</p>
-                    <p className="text-green-600 text-sm font-medium">Accepted</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl p-4 border border-red-200 hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">❌</span>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-red-700">{appointments.filter(a => a.status === 'REJECTED').length}</p>
-                    <p className="text-red-600 text-sm font-medium">Rejected</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">🚫</span>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-700">{appointments.filter(a => a.status === 'CANCELLED').length}</p>
-                    <p className="text-gray-600 text-sm font-medium">Cancelled</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Appointments List */}
+            {/* Appointments List - Only show appointments for this doctor */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-bold text-white">My Appointments</h2>
-                    <p className="text-blue-100 text-sm">Manage your patient appointments</p>
+                    <p className="text-blue-100 text-sm">Patients who have booked with you</p>
                   </div>
                   <button
                     onClick={fetchAppointments}
@@ -469,7 +421,6 @@ function DoctorDashboard() {
                   </button>
                 </div>
               </div>
-              
               <div className="p-6">
                 {loading ? (
                   <div className="space-y-4">
@@ -477,99 +428,85 @@ function DoctorDashboard() {
                     <CardSkeleton />
                     <CardSkeleton />
                   </div>
-                ) : appointments.length === 0 ? (
-                  <div className="text-center py-16">
-                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-4xl">📅</span>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No appointments yet</h3>
-                    <p className="text-gray-500 max-w-sm mx-auto">Your upcoming appointments will appear here when patients book with you.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {appointments.map((appointment) => (
-                      <div key={appointment.id} className={`bg-white border rounded-xl p-5 hover:shadow-lg transition-all duration-200 ${
-                        appointment.status === 'PENDING' ? 'border-l-4 border-l-yellow-400 border-yellow-100' :
-                        appointment.status === 'ACCEPTED' ? 'border-l-4 border-l-green-400 border-green-100' :
-                        appointment.status === 'REJECTED' ? 'border-l-4 border-l-red-400 border-red-100' :
-                        'border-l-4 border-l-gray-400 border-gray-100'
-                      }`}>
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                              <span className="text-xl">👤</span>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-gray-900">{appointment.patient?.name}</h3>
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                                  appointment.status === 'ACCEPTED' ? 'bg-green-100 text-green-700' :
-                                  appointment.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                  'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {appointment.status}
-                                </span>
+                ) : (() => {
+                  const doctorAppointments = appointments.filter(a => a.doctorId === user.id);
+                  if (doctorAppointments.length === 0) {
+                    return (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <span className="text-4xl">📅</span>
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">No appointments yet</h3>
+                        <p className="text-gray-500 max-w-sm mx-auto">Your upcoming appointments will appear here when patients book with you.</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-4">
+                      {doctorAppointments.map((appointment) => (
+                        <div key={appointment.id} className={`bg-white border rounded-xl p-5 hover:shadow-lg transition-all duration-200 ${
+                          (appointment.status || '').toUpperCase() === 'PENDING' ? 'border-l-4 border-l-yellow-400 border-yellow-100' :
+                          ['APPROVED','ACCEPTED'].includes((appointment.status || '').toUpperCase()) ? 'border-l-4 border-l-green-400 border-green-100' :
+                          (appointment.status || '').toUpperCase() === 'COMPLETED' ? 'border-l-4 border-l-blue-400 border-blue-100' :
+                          'border-l-4 border-l-gray-400 border-gray-100'
+                        }`}>
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-start gap-4">
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-xl">👤</span>
                               </div>
-                              <p className="text-sm text-gray-500 mb-2">{appointment.patient?.email}</p>
-                              <div className="flex flex-wrap items-center gap-3 text-sm">
-                                <span className="flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                                  <span>📅</span> {new Date(appointment.appointmentDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                                </span>
-                                <span className="flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                                  <span>🕐</span> {appointment.time}
-                                </span>
-                                {/* Payment Status */}
-                                {appointment.payment && (
-                                  <span className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                                    appointment.payment.paymentStatus === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                    appointment.payment.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-red-100 text-red-700'
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold text-gray-900">{appointment.patient?.name}</h3>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    (appointment.status || '').toUpperCase() === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                    ['APPROVED','ACCEPTED'].includes((appointment.status || '').toUpperCase()) ? 'bg-green-100 text-green-700' :
+                                    (appointment.status || '').toUpperCase() === 'COMPLETED' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
                                   }`}>
-                                    {appointment.payment.paymentStatus === 'COMPLETED' ? '💳 Paid' :
-                                     appointment.payment.paymentStatus === 'PENDING' ? '💳 Payment Pending' :
-                                     '💳 Payment Failed'}
-                                    {appointment.payment.paymentMethod && ` (${appointment.payment.paymentMethod})`}
+                                    {appointment.status}
                                   </span>
-                                )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 text-sm">
+                                  <span className="flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                    <span>📅</span> {new Date(appointment.appointmentDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                    <span>🕐</span> {appointment.time}
+                                  </span>
+                                </div>
                               </div>
-                              {appointment.reason && (
-                                <div className="mt-3 bg-blue-50 rounded-lg p-3 border border-blue-100">
-                                  <p className="text-sm text-blue-800"><span className="font-medium">Reason:</span> {appointment.reason}</p>
+                            </div>
+                            <div className="flex flex-col gap-2 md:items-end">
+                              {String(appointment.status).trim().toLowerCase() === 'pending' && (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => updateStatus(appointment.id, 'APPROVED')}
+                                    className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all font-medium shadow-sm hover:shadow flex items-center gap-1"
+                                  >
+                                    <span>✓</span> Accept
+                                  </button>
+                                  <button
+                                    onClick={() => updateStatus(appointment.id, 'REJECTED')}
+                                    className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2 rounded-lg transition-all font-medium shadow-sm hover:shadow flex items-center gap-1"
+                                  >
+                                    <span>✕</span> Reject
+                                  </button>
                                 </div>
                               )}
+                              <button
+                                onClick={() => openPatientDetails(appointment.patientId)}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline flex items-center gap-1"
+                              >
+                                View Patient Details →
+                              </button>
                             </div>
                           </div>
-                          
-                          <div className="flex flex-col gap-2 md:items-end">
-                            {appointment.status === 'PENDING' && (
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => updateStatus(appointment.id, 'ACCEPTED')}
-                                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all font-medium shadow-sm hover:shadow flex items-center gap-1"
-                                >
-                                  <span>✓</span> Accept
-                                </button>
-                                <button
-                                  onClick={() => updateStatus(appointment.id, 'REJECTED')}
-                                  className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2 rounded-lg transition-all font-medium shadow-sm hover:shadow flex items-center gap-1"
-                                >
-                                  <span>✕</span> Reject
-                                </button>
-                              </div>
-                            )}
-                            <button
-                              onClick={() => openPatientDetails(appointment.patientId)}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline flex items-center gap-1"
-                            >
-                              View Patient Details →
-                            </button>
-                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -943,16 +880,30 @@ function DoctorDashboard() {
                 <div>
                   <div className="text-xl font-bold text-gray-900">{patientDetails.patient?.name}</div>
                   <div className="text-gray-500">{patientDetails.patient?.email}</div>
+                  <div className="mt-2 space-y-1">
+                    {patientDetails.patient?.age && (
+                      <div className="text-gray-700"><strong>Age:</strong> {patientDetails.patient.age}</div>
+                    )}
+                    {patientDetails.patient?.gender && (
+                      <div className="text-gray-700"><strong>Gender:</strong> {patientDetails.patient.gender}</div>
+                    )}
+                    {patientDetails.patient?.phone && (
+                      <div className="text-gray-700"><strong>Phone:</strong> {patientDetails.patient.phone}</div>
+                    )}
+                    {patientDetails.patient?.problem && (
+                      <div className="text-gray-700"><strong>Problem/Symptoms:</strong> {patientDetails.patient.problem}</div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="mb-4">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <span>📋</span> Appointment History
+                  <span>📋</span> Appointment History (with you)
                 </h4>
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                  {(patientDetails.appointments || []).length > 0 ? (
-                    (patientDetails.appointments || []).map(a => (
+                  {((patientDetails.appointments || []).filter(a => a.doctorId === user.id)).length > 0 ? (
+                    (patientDetails.appointments || []).filter(a => a.doctorId === user.id).map(a => (
                       <div key={a.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
                         <div className="flex justify-between items-start mb-2">
                           <div>

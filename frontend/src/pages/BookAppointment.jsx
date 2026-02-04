@@ -22,6 +22,7 @@ function BookAppointment() {
   const [form, setForm] = useState({
     name: user?.name || "",
     age: "",
+    gender: "",
     phone: "",
     date: "",
     time: "",
@@ -88,7 +89,11 @@ function BookAppointment() {
         doctorId: doctor.id,
         appointmentDate: `${form.date}T${form.time}:00`,
         time: form.time,
-        reason: form.reason
+        reason: form.reason,
+        name: form.name,
+        age: form.age,
+        gender: form.gender,
+        phone: form.phone
       });
 
       const appointment = response.data;
@@ -162,19 +167,82 @@ function BookAppointment() {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-red-500 text-center">{error}</p>}
-          {["name", "age", "phone", "date", "time"].map((field) => (
-            <div key={field}>
-              <label className="block text-gray-700 font-semibold capitalize">{field}:</label>
-              <input
-                type={field === "age" ? "number" : field === "phone" ? "tel" : field === "date" ? "date" : field === "time" ? "time" : "text"}
-                name={field}
-                value={form[field]}
-                onChange={handleChange}
-                required
-                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          ))}
+          {/* Name */}
+          <div>
+            <label className="block text-gray-700 font-semibold">Full Name:</label>
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              required
+              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {/* Age */}
+          <div>
+            <label className="block text-gray-700 font-semibold">Age:</label>
+            <input
+              type="number"
+              name="age"
+              value={form.age}
+              onChange={handleChange}
+              required
+              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {/* Gender */}
+          <div>
+            <label className="block text-gray-700 font-semibold">Gender:</label>
+            <select
+              name="gender"
+              value={form.gender}
+              onChange={handleChange}
+              required
+              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          {/* Phone */}
+          <div>
+            <label className="block text-gray-700 font-semibold">Phone:</label>
+            <input
+              type="tel"
+              name="phone"
+              value={form.phone}
+              onChange={handleChange}
+              required
+              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {/* Date */}
+          <div>
+            <label className="block text-gray-700 font-semibold">Date:</label>
+            <input
+              type="date"
+              name="date"
+              value={form.date}
+              onChange={handleChange}
+              required
+              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {/* Time */}
+          <div>
+            <label className="block text-gray-700 font-semibold">Time:</label>
+            <input
+              type="time"
+              name="time"
+              value={form.time}
+              onChange={handleChange}
+              required
+              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
           <div>
             <label className="block text-gray-700 font-semibold">Reason for visit:</label>
             <textarea
