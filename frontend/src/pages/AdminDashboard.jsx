@@ -48,11 +48,35 @@ function AdminDashboard() {
     try {
       // Use the dedicated stats endpoint (returns counts)
       const res = await axios.get('http://localhost:5000/api/admin/stats', { withCredentials: true });
+      // Fetch actual lists to get filtered counts
+      const [usersRes, doctorsRes, appointmentsRes] = await Promise.all([
+        axios.get('http://localhost:5000/api/admin/users', { withCredentials: true }),
+        axios.get('http://localhost:5000/api/admin/doctors', { withCredentials: true }),
+        axios.get('http://localhost:5000/api/admin/appointments', { withCredentials: true })
+      ]);
+      // Only count valid doctors (with id, name, and email)
+      const validDoctors = Array.isArray(doctorsRes.data)
+        ? doctorsRes.data.filter(doc => {
+            const name = doc.user?.name || doc.name;
+            const email = doc.user?.email || doc.email;
+            return doc && doc.id && name && email;
+          })
+        : [];
+      // Only count valid users (with id, name, and email)
+      const validUsers = Array.isArray(usersRes.data)
+        ? usersRes.data.filter(u => u && u.id && u.name && u.email)
+        : [];
+      // Only count valid appointments (with id)
+      const validAppointments = Array.isArray(appointmentsRes.data)
+        ? appointmentsRes.data.filter(a => a && a.id)
+        : [];
+      // Pending appointments
+      const pendingAppointments = validAppointments.filter(a => a.status === 'PENDING').length;
       setStats({
-        totalUsers: res.data.totalUsers,
-        totalDoctors: res.data.totalDoctors,
-        totalAppointments: res.data.totalAppointments,
-        pendingAppointments: res.data.pendingAppointments
+        totalUsers: validUsers.length,
+        totalDoctors: validDoctors.length,
+        totalAppointments: validAppointments.length,
+        pendingAppointments
       });
     } catch (err) {
       console.error("Fetch stats error:", err);
@@ -110,7 +134,11 @@ function AdminDashboard() {
   const fetchDoctors = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/admin/doctors', { withCredentials: true });
-      setDoctors(response.data);
+      // Filter out any doctors with missing id (not in backend)
+      const validDoctors = Array.isArray(response.data)
+        ? response.data.filter(doc => doc && doc.id)
+        : [];
+      setDoctors(validDoctors);
     } catch (err) {
       console.error("Fetch doctors error:", err);
       setError("Failed to load doctors");
@@ -395,42 +423,49 @@ function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {doctors.map((doctor) => (
-                  <tr key={doctor.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{doctor.user.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{doctor.user.email}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{doctor.specialty || 'Not set'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{doctor.experience || 'Not set'} years</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">Rs. {doctor.fee || 'Not set'}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        doctor.approved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {doctor.approved ? '✅ Approved' : '⏳ Pending'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm space-x-2">
-                      {!doctor.approved ? (
-                        <>
-                          <button
-                            onClick={() => approveDoctor(doctor.id)}
-                            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-sm"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => rejectDoctor(doctor.id)}
-                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
-                          >
-                            Reject
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-green-600 font-medium">Approved</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {doctors.map((doctor) => {
+                  // Fallbacks for missing user info
+                  const name = doctor.user?.name || doctor.name || 'N/A';
+                  const email = doctor.user?.email || doctor.email || 'N/A';
+                  // Filter out doctors with both name and email as N/A
+                  if (name === 'N/A' && email === 'N/A') return null;
+                  return (
+                    <tr key={doctor.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">{name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{email}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{doctor.specialty || 'Not set'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{doctor.experience || 'Not set'} years</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">Rs. {doctor.fee || 'Not set'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          doctor.approved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {doctor.approved ? '✅ Approved' : '⏳ Pending'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm space-x-2">
+                        {!doctor.approved ? (
+                          <>
+                            <button
+                              onClick={() => approveDoctor(doctor.id)}
+                              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-sm"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => rejectDoctor(doctor.id)}
+                              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-green-600 font-medium">Approved</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -457,17 +492,17 @@ function AdminDashboard() {
                   <div className="flex-1">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-800">👤 {appointment.patient.name}</h3>
-                        <p className="text-gray-600">{appointment.patient.email}</p>
+                        <h3 className="text-lg font-semibold text-gray-800">👤 {appointment.patient?.name || 'N/A'}</h3>
+                        <p className="text-gray-600">{appointment.patient?.email || 'N/A'}</p>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-800">👨‍⚕️ {appointment.doctor.user.name}</h3>
-                        <p className="text-gray-600">{appointment.doctor.specialty}</p>
+                        <h3 className="text-lg font-semibold text-gray-800">👨‍⚕️ {appointment.doctor?.user?.name || appointment.doctor?.name || 'N/A'}</h3>
+                        <p className="text-gray-600">{appointment.doctor?.specialty || 'N/A'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                      <span>📅 {new Date(appointment.appointmentDate).toLocaleDateString()}</span>
-                      <span>🕐 {appointment.time}</span>
+                      <span>📅 {appointment.appointmentDate ? new Date(appointment.appointmentDate).toLocaleDateString() : 'N/A'}</span>
+                      <span>🕐 {appointment.time || 'N/A'}</span>
                     </div>
                     {appointment.reason && (
                       <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">

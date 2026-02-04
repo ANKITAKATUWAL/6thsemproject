@@ -57,17 +57,19 @@ router.get("/", async (req, res) => {
     });
 
     // Format response for frontend with full photo URL
-    const formattedDoctors = doctors.map(doc => ({
-      id: doc.id,
-      name: doc.user.name,
-      email: doc.user.email,
-      specialty: doc.specialty,
-      experience: doc.experience,
-      fee: doc.fee,
-      available: doc.available,
-      photo: getPhotoUrl(req, doc.photo, doc.user.name),
-      about: doc.about || "Experienced medical professional dedicated to providing quality healthcare."
-    }));
+    const formattedDoctors = doctors
+      .filter(doc => doc && doc.user && doc.user.name)
+      .map(doc => ({
+        id: doc.id,
+        name: doc.user.name,
+        email: doc.user.email,
+        specialty: doc.specialty,
+        experience: doc.experience,
+        fee: doc.fee,
+        available: doc.available,
+        photo: getPhotoUrl(req, doc.photo, doc.user.name),
+        about: doc.about || "Experienced medical professional dedicated to providing quality healthcare."
+      }));
 
     res.json(formattedDoctors);
   } catch (err) {
