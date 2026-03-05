@@ -4,15 +4,65 @@ import auth from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Khalti configuration
-const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || "live_secret_key_68791341fdd94846a146f0457ff7b455";
-const KHALTI_API_URL = "https://a.khalti.com/api/v2";
+const getKhaltiConfig = () => ({
+  secretKey: process.env.KHALTI_SECRET_KEY,
+  apiUrl: process.env.KHALTI_API_URL || "https://dev.khalti.com/api/v2",
+  websiteUrl: process.env.WEBSITE_URL || process.env.FRONTEND_URL || "http://localhost:5173"
+});
+
+const isSupportedMethod = (paymentMethod) => {
+  return paymentMethod === "KHALTI" || paymentMethod === "CASH";
+};
+
+const lookupKhaltiPayment = async (pidx, secretKey, apiUrl) => {
+  const response = await fetch(`${apiUrl}/epayment/lookup/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${secretKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ pidx })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.detail || "Khalti lookup failed");
+  }
+
+  return data;
+};
+
+const rollbackAppointmentForFailedKhalti = async (appointmentId, patientId) => {
+  if (!appointmentId || !patientId) return;
+
+  await prisma.$transaction([
+    prisma.payment.deleteMany({
+      where: { appointmentId: parseInt(appointmentId) }
+    }),
+    prisma.appointment.deleteMany({
+      where: {
+        id: parseInt(appointmentId),
+        patientId: parseInt(patientId),
+        status: "PENDING"
+      }
+    })
+  ]);
+};
 
 // Initialize Khalti Payment
 router.post("/initiate", auth, async (req, res) => {
   try {
-    const { appointmentId, amount, paymentMethod } = req.body;
+    const { secretKey, apiUrl, websiteUrl } = getKhaltiConfig();
+    const { appointmentId, paymentMethod, returnUrl } = req.body;
     const userId = req.user.id;
+
+    if (!appointmentId) {
+      return res.status(400).json({ message: "appointmentId is required" });
+    }
+
+    if (!isSupportedMethod(paymentMethod)) {
+      return res.status(400).json({ message: "Payment method must be KHALTI or CASH" });
+    }
 
     // Validate appointment exists and belongs to the user
     const appointment = await prisma.appointment.findFirst({
@@ -34,6 +84,11 @@ router.post("/initiate", auth, async (req, res) => {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
+    const amount = Number(appointment.doctor?.fee || 0);
+    if (amount <= 0) {
+      return res.status(400).json({ message: "Invalid doctor fee amount" });
+    }
+
     // Check if payment already exists for this appointment
     const existingPayment = await prisma.payment.findUnique({
       where: { appointmentId: parseInt(appointmentId) }
@@ -43,7 +98,7 @@ router.post("/initiate", auth, async (req, res) => {
       return res.status(400).json({ message: "Payment already completed for this appointment" });
     }
 
-    if (paymentMethod === 'CASH') {
+    if (paymentMethod === "CASH") {
       // For cash payment, create payment record with pending status
       const payment = await prisma.payment.upsert({
         where: { appointmentId: parseInt(appointmentId) },
@@ -55,7 +110,7 @@ router.post("/initiate", auth, async (req, res) => {
         create: {
           appointmentId: parseInt(appointmentId),
           amount: parseFloat(amount),
-          paymentMethod: 'CASH',
+          paymentMethod: "CASH",
           paymentStatus: 'PENDING'
         }
       });
@@ -63,100 +118,94 @@ router.post("/initiate", auth, async (req, res) => {
       return res.json({
         success: true,
         message: "Cash payment selected. Please pay at the clinic.",
-        payment,
-        paymentMethod: 'CASH'
+        data: {
+          payment,
+          paymentMethod: "CASH"
+        }
       });
     }
 
-    if (paymentMethod === 'KHALTI') {
-      // Khalti payment initiation
-      const khaltiPayload = {
-        return_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment/verify`,
-        website_url: process.env.FRONTEND_URL || 'http://localhost:5173',
-        amount: Math.round(amount * 100), // Khalti expects amount in paisa
-        purchase_order_id: `APT-${appointmentId}-${Date.now()}`,
-        purchase_order_name: `Appointment with Dr. ${appointment.doctor.user.name}`,
-        customer_info: {
-          name: appointment.patient.name,
-          email: appointment.patient.email
-        }
-      };
+    if (!secretKey) {
+      await rollbackAppointmentForFailedKhalti(appointment.id, userId);
+      return res.status(500).json({ message: "KHALTI_SECRET_KEY is missing in backend env" });
+    }
 
-      const khaltiResponse = await fetch(`${KHALTI_API_URL}/epayment/initiate/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${KHALTI_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(khaltiPayload)
-      });
-
-      const khaltiData = await khaltiResponse.json();
-
-      if (!khaltiResponse.ok) {
-        console.error("Khalti error:", khaltiData);
-        return res.status(400).json({ 
-          message: "Failed to initiate payment", 
-          error: khaltiData 
-        });
+    const payment = await prisma.payment.upsert({
+      where: { appointmentId: parseInt(appointmentId) },
+      update: {
+        amount: parseFloat(amount),
+        paymentMethod: "KHALTI",
+        paymentStatus: "PENDING",
+        pidx: null,
+        transactionId: null
+      },
+      create: {
+        appointmentId: parseInt(appointmentId),
+        amount: parseFloat(amount),
+        paymentMethod: "KHALTI",
+        paymentStatus: "PENDING"
       }
+    });
 
-      // Create or update payment record
-      const payment = await prisma.payment.upsert({
-        where: { appointmentId: parseInt(appointmentId) },
-        update: {
-          amount: parseFloat(amount),
-          paymentMethod: 'KHALTI',
-          paymentStatus: 'PENDING',
-          pidx: khaltiData.pidx
-        },
-        create: {
-          appointmentId: parseInt(appointmentId),
-          amount: parseFloat(amount),
-          paymentMethod: 'KHALTI',
-          paymentStatus: 'PENDING',
-          pidx: khaltiData.pidx
-        }
-      });
+    const khaltiPayload = {
+      return_url: returnUrl || `${websiteUrl}/payment/verify?appointmentId=${appointment.id}`,
+      website_url: websiteUrl,
+      amount: Math.round(amount * 100),
+      purchase_order_id: `APT-${appointment.id}`,
+      purchase_order_name: `Appointment with Dr. ${appointment.doctor.user.name}`,
+      customer_info: {
+        name: appointment.patient.name,
+        email: appointment.patient.email,
+        phone: "9800000001"
+      }
+    };
 
-      return res.json({
-        success: true,
-        payment_url: khaltiData.payment_url,
-        pidx: khaltiData.pidx,
-        payment
-      });
-    }
+    const khaltiResponse = await fetch(`${apiUrl}/epayment/initiate/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${secretKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(khaltiPayload)
+    });
 
-    if (paymentMethod === 'ESEWA') {
-      // eSewa payment - for future implementation
-      // Create payment record with pending status
-      const payment = await prisma.payment.upsert({
-        where: { appointmentId: parseInt(appointmentId) },
-        update: {
-          amount: parseFloat(amount),
-          paymentMethod: 'ESEWA',
-          paymentStatus: 'PENDING'
-        },
-        create: {
-          appointmentId: parseInt(appointmentId),
-          amount: parseFloat(amount),
-          paymentMethod: 'ESEWA',
-          paymentStatus: 'PENDING'
-        }
-      });
-
-      return res.json({
-        success: true,
-        message: "eSewa payment coming soon. Please use Khalti or Cash for now.",
-        payment,
-        paymentMethod: 'ESEWA'
+    const khaltiData = await khaltiResponse.json();
+    if (!khaltiResponse.ok) {
+      console.error("Khalti initiate failed:", khaltiData);
+      await rollbackAppointmentForFailedKhalti(appointment.id, userId);
+      return res.status(400).json({
+        message: "Failed to initiate Khalti payment",
+        error: khaltiData
       });
     }
 
-    return res.status(400).json({ message: "Invalid payment method" });
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        pidx: khaltiData.pidx
+      }
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        paymentUrl: khaltiData.payment_url,
+        pidx: khaltiData.pidx
+      }
+    });
 
   } catch (err) {
     console.error("Payment initiation error:", err);
+
+    const { appointmentId, paymentMethod } = req.body || {};
+    if (paymentMethod === "KHALTI" && appointmentId && req.user?.id) {
+      try {
+        await rollbackAppointmentForFailedKhalti(appointmentId, req.user.id);
+      } catch (rollbackErr) {
+        console.error("Rollback after initiate error failed:", rollbackErr);
+      }
+    }
+
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -164,37 +213,49 @@ router.post("/initiate", auth, async (req, res) => {
 // Verify Khalti Payment
 router.post("/verify", auth, async (req, res) => {
   try {
-    const { pidx, appointmentId } = req.body;
+    const { secretKey, apiUrl } = getKhaltiConfig();
+    const { pidx } = req.body;
 
     if (!pidx) {
       return res.status(400).json({ message: "Payment index (pidx) is required" });
     }
 
-    // Verify with Khalti
-    const verifyResponse = await fetch(`${KHALTI_API_URL}/epayment/lookup/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${KHALTI_SECRET_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ pidx })
+    if (!secretKey) {
+      return res.status(500).json({ message: "KHALTI_SECRET_KEY is missing in backend env" });
+    }
+
+    const payment = await prisma.payment.findFirst({
+      where: { pidx },
+      include: {
+        appointment: {
+          select: {
+            id: true,
+            status: true,
+            patientId: true
+          }
+        }
+      }
     });
 
-    const verifyData = await verifyResponse.json();
+    if (!payment || payment.appointment.patientId !== req.user.id) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
 
-    if (!verifyResponse.ok) {
-      console.error("Khalti verification error:", verifyData);
-      return res.status(400).json({ 
-        message: "Payment verification failed", 
-        error: verifyData 
+    if (payment.paymentStatus === "COMPLETED") {
+      return res.json({
+        success: true,
+        message: "Payment already verified",
+        data: payment
       });
     }
+
+    const verifyData = await lookupKhaltiPayment(pidx, secretKey, apiUrl);
 
     // Check payment status from Khalti
     if (verifyData.status === 'Completed') {
       // Update payment record
-      const payment = await prisma.payment.update({
-        where: { pidx: pidx },
+      const updatedPayment = await prisma.payment.update({
+        where: { id: payment.id },
         data: {
           paymentStatus: 'COMPLETED',
           transactionId: verifyData.transaction_id
@@ -204,27 +265,33 @@ router.post("/verify", auth, async (req, res) => {
       return res.json({
         success: true,
         message: "Payment verified successfully",
-        payment,
-        khaltiData: verifyData
+        data: updatedPayment
       });
-    } else if (verifyData.status === 'Pending') {
+    } else if (verifyData.status === 'Pending' || verifyData.status === 'Initiated') {
       return res.json({
         success: false,
-        message: "Payment is still pending",
+        message: "Payment is not completed yet",
         status: verifyData.status
       });
     } else {
       // Payment failed or expired
-      await prisma.payment.update({
-        where: { pidx: pidx },
-        data: {
-          paymentStatus: 'FAILED'
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            paymentStatus: 'FAILED'
+          }
+        });
+
+        if (payment.appointment.status === 'PENDING') {
+          await tx.payment.delete({ where: { id: payment.id } });
+          await tx.appointment.delete({ where: { id: payment.appointment.id } });
         }
       });
 
       return res.json({
         success: false,
-        message: "Payment failed or expired",
+        message: "Payment failed, canceled, refunded, or expired. Appointment was not booked.",
         status: verifyData.status
       });
     }

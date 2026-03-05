@@ -36,7 +36,7 @@ function Home() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchTerm || selectedSpeciality) {
-      navigate(`/doctors?search=${searchTerm}&speciality=${selectedSpeciality}`);
+      navigate(`/doctors?search=${searchTerm}&specialty=${selectedSpeciality}`);
     } else {
       navigate('/doctors');
     }
@@ -152,7 +152,7 @@ function Home() {
               {specialityData.map((item, index) => (
                 <Link
                   key={index}
-                  to={`/doctors?speciality=${encodeURIComponent(item.speciality)}`}
+                  to={`/doctors?specialty=${encodeURIComponent(item.speciality)}`}
                   className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 p-6 text-center hover:-translate-y-2 border-2 border-transparent hover:border-blue-500"
                 >
                   <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">

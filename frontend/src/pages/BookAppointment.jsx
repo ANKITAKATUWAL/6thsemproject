@@ -5,14 +5,6 @@ import api from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import { toast } from 'react-toastify';
 
-// Payment method icons
-const KhaltiIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-    <text x="7" y="16" fontSize="10" fontWeight="bold">K</text>
-  </svg>
-);
-
 function BookAppointment() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -100,35 +92,67 @@ function BookAppointment() {
       setAppointmentCreated(appointment);
 
       // Then initiate payment
-      setProcessingPayment(true);
-      const paymentResponse = await api.post('/payments/initiate', {
-        appointmentId: appointment.id,
-        amount: doctor.fee,
-        paymentMethod: paymentMethod
-      });
+      try {
+        setProcessingPayment(true);
+        const returnUrl = `${window.location.origin}/payment/verify?appointmentId=${appointment.id}`;
+        const paymentResponse = await api.post('/payments/initiate', {
+          appointmentId: appointment.id,
+          paymentMethod,
+          returnUrl
+        });
 
-      if (paymentMethod === 'KHALTI' && paymentResponse.data.payment_url) {
-        // Redirect to Khalti payment page
-        toast.info('Redirecting to Khalti payment...');
-        window.location.href = paymentResponse.data.payment_url;
-        return;
-      } else if (paymentMethod === 'CASH') {
-        setSubmitted(true);
-        toast.success('Appointment booked! Please pay at the clinic.');
-        setTimeout(() => {
-          navigate('/my-dashboard');
-        }, 2000);
-      } else {
+        const paymentUrl =
+          paymentResponse.data?.data?.paymentUrl ||
+          paymentResponse.data?.data?.payment_url ||
+          paymentResponse.data?.paymentUrl ||
+          paymentResponse.data?.payment_url;
+
+        if (paymentMethod === 'KHALTI' && paymentUrl) {
+          toast.info('Redirecting to Khalti payment...');
+          window.location.href = paymentUrl;
+          return;
+        }
+
+        if (paymentMethod === 'KHALTI') {
+          throw new Error('Khalti payment URL not found in server response.');
+        }
+
+        if (paymentMethod === 'CASH') {
+          setSubmitted(true);
+          toast.success('Appointment booked! Please pay at the clinic.');
+          setTimeout(() => {
+            navigate('/my-dashboard');
+          }, 2000);
+          return;
+        }
+
         setSubmitted(true);
         toast.success('Appointment booked successfully!');
         setTimeout(() => {
           navigate('/my-dashboard');
         }, 2000);
+      } catch (paymentErr) {
+        console.error("Payment initiation error:", paymentErr.response?.data || paymentErr);
+
+        if (paymentMethod === 'KHALTI') {
+          const backendMessage =
+            paymentErr?.response?.data?.error?.detail ||
+            paymentErr?.response?.data?.message ||
+            paymentErr?.message ||
+            'Khalti payment could not be initiated.';
+
+          setSubmitted(false);
+          setError(`Khalti payment failed: ${backendMessage}. Appointment was not booked.`);
+          toast.error(`Khalti payment failed: ${backendMessage}`);
+          return;
+        }
+
+        throw paymentErr;
       }
 
     } catch (err) {
       console.error("Booking error:", err);
-      setError(err.response?.data?.message || "Failed to book appointment");
+      setError(err.response?.data?.message || err.response?.data?.error?.detail || "Failed to book appointment");
     } finally {
       setLoading(false);
       setProcessingPayment(false);
@@ -286,27 +310,6 @@ function BookAppointment() {
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Recommended</span>
               </label>
 
-              {/* eSewa Payment */}
-              <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition opacity-50 ${paymentMethod === 'ESEWA' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="ESEWA"
-                  disabled
-                  className="mr-3 w-4 h-4 text-green-600"
-                />
-                <div className="flex items-center flex-1">
-                  <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
-                    <span className="text-white font-bold text-lg">e</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-800">eSewa</p>
-                    <p className="text-sm text-gray-500">Pay with eSewa wallet</p>
-                  </div>
-                </div>
-                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Coming Soon</span>
-              </label>
-
               {/* Cash Payment */}
               <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition ${paymentMethod === 'CASH' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:border-yellow-300'}`}>
                 <input
@@ -335,7 +338,7 @@ function BookAppointment() {
             disabled={loading || processingPayment}
             className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {processingPayment ? "Processing Payment..." : loading ? "Booking..." : paymentMethod === 'KHALTI' ? `Pay Rs. ${doctor.fee} with Khalti` : paymentMethod === 'CASH' ? "Book & Pay at Clinic" : "Confirm Appointment"}
+            {processingPayment ? "Processing Payment..." : loading ? "Booking..." : paymentMethod === 'KHALTI' ? `Pay Rs. ${doctor.fee} with Khalti` : "Book & Pay at Clinic"}
           </button>
         </form>
       )}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 // Default doctor image placeholder
@@ -7,6 +7,7 @@ const defaultDoctorImage = "https://via.placeholder.com/150?text=Doctor";
 
 function Doctors() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [showSidebar, setShowSidebar] = useState(false);
   const [specialtyFilter, setSpecialtyFilter] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("");
@@ -17,7 +18,7 @@ function Doctors() {
   const [error, setError] = useState(null);
 
   // Get unique specialties from fetched doctors
-  const specialties = [...new Set(doctorsList.map((d) => d.specialty))];
+  const specialties = [...new Set(doctorsList.map((d) => d.specialty).filter(Boolean))];
 
   // Fetch doctors from API and set initial specialty filter from query param
   useEffect(() => {
@@ -28,7 +29,7 @@ function Doctors() {
         const doctors = response.data.map((doc) => ({
           id: doc.id,
           name: doc.name,
-          specialty: doc.specialty,
+          specialty: doc.specialty || doc.speciality || "",
           experience: doc.experience,
           fee: doc.fee,
           available: doc.available ?? true,
@@ -46,9 +47,9 @@ function Doctors() {
       }
     };
 
-    // Read 'speciality' query param
+    // Read specialty query param (supports both spellings)
     const params = new URLSearchParams(location.search);
-    const specialityParam = params.get('speciality') || "";
+    const specialityParam = params.get('speciality') || params.get('specialty') || "";
     setSpecialtyFilter(specialityParam);
 
     fetchDoctors();
@@ -56,7 +57,11 @@ function Doctors() {
 
   useEffect(() => {
     let filtered = doctorsList;
-    if (specialtyFilter) filtered = filtered.filter(d => d.specialty.toLowerCase().includes(specialtyFilter.toLowerCase()));
+    if (specialtyFilter) {
+      filtered = filtered.filter((d) =>
+        (d.specialty || "").toLowerCase().includes(specialtyFilter.toLowerCase())
+      );
+    }
     if (availabilityFilter) filtered = filtered.filter(d => availabilityFilter === 'available' ? d.available : !d.available);
     if (feeFilter) {
       const max = parseInt(feeFilter);
@@ -67,6 +72,15 @@ function Doctors() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100">
+      {/* Back to Home Button */}
+      <div className="max-w-7xl mx-auto px-4 pt-6">
+        <button
+          className="mb-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold shadow-md transition-all duration-200"
+          onClick={() => navigate('/')}
+        >
+          ← Back to Home
+        </button>
+      </div>
       {/* Header Section */}
       <div className="max-w-7xl mx-auto px-4 mb-8 animate-fade-in">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">

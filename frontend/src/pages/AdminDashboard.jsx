@@ -401,6 +401,19 @@ function AdminDashboard() {
                 <input value={newDoctor.specialty} onChange={e => setNewDoctor({ ...newDoctor, specialty: e.target.value })} placeholder="Specialty" className="border rounded px-3 py-2" />
                 <input value={newDoctor.experience} onChange={e => setNewDoctor({ ...newDoctor, experience: e.target.value })} placeholder="Experience (years)" type="number" className="border rounded px-3 py-2" />
                 <input value={newDoctor.fee} onChange={e => setNewDoctor({ ...newDoctor, fee: e.target.value })} placeholder="Fee" type="number" className="border rounded px-3 py-2" />
+                <select value={newDoctor.time || ''} onChange={e => setNewDoctor({ ...newDoctor, time: e.target.value })} className="border rounded px-3 py-2">
+                  <option value="">Select Time</option>
+                  <option value="8:00">8:00 AM</option>
+                  <option value="9:00">9:00 AM</option>
+                  <option value="10:00">10:00 AM</option>
+                  <option value="11:00">11:00 AM</option>
+                  <option value="12:00">12:00 PM</option>
+                  <option value="13:00">1:00 PM</option>
+                  <option value="14:00">2:00 PM</option>
+                  <option value="15:00">3:00 PM</option>
+                  <option value="16:00">4:00 PM</option>
+                  <option value="17:00">5:00 PM</option>
+                </select>
               </div>
               <div className="mt-3 flex gap-2">
                 <button onClick={createDoctorAccount} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Create</button>
