@@ -8,6 +8,19 @@ const router = express.Router();
 // In-memory availability store for doctors (doctorId -> availability object)
 const availabilityStore = new Map();
 
+const getAppointmentDateTime = (appointmentDate, time) => {
+  const datePart = new Date(appointmentDate).toISOString().split('T')[0];
+  const timePart = time && time.length === 5 ? `${time}:00` : (time || '00:00:00');
+  return new Date(`${datePart}T${timePart}`);
+};
+
+const isVisitedAcceptedAppointment = (appointment) => {
+  if (!appointment) return false;
+  if (appointment.status !== 'ACCEPTED') return false;
+  const scheduledAt = getAppointmentDateTime(appointment.appointmentDate, appointment.time);
+  return scheduledAt < new Date();
+};
+
 // Upload doctor photo
 router.post("/doctor/photo", auth, upload.single('photo'), async (req, res) => {
   try {
@@ -77,6 +90,20 @@ router.post("/book", auth, async (req, res) => {
   try {
     const { doctorId, appointmentDate, time, reason } = req.body;
     const patientId = req.user.id;
+
+    const requestedDate = new Date(appointmentDate);
+    if (Number.isNaN(requestedDate.getTime())) {
+      return res.status(400).json({ message: "Invalid appointment date" });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const requestedDay = new Date(requestedDate);
+    requestedDay.setHours(0, 0, 0, 0);
+
+    if (requestedDay < today) {
+      return res.status(400).json({ message: "Past dates are not allowed for booking" });
+    }
 
     // Check if doctor exists, if not create a dummy doctor
     let doctor = await prisma.doctor.findUnique({
@@ -375,6 +402,41 @@ router.put("/:id/cancel", auth, async (req, res) => {
     res.json(updatedAppointment);
   } catch (err) {
     console.error("Cancel appointment error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Delete appointment history (patient only) for accepted + visited appointments
+router.delete("/:id/history", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: parseInt(id) },
+      include: { payment: true }
+    });
+
+    if (!appointment || appointment.patientId !== req.user.id) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    if (!isVisitedAcceptedAppointment(appointment)) {
+      return res.status(400).json({
+        message: "You can only delete history for visited accepted appointments"
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (appointment.payment) {
+        await tx.payment.delete({ where: { appointmentId: appointment.id } });
+      }
+
+      await tx.appointment.delete({ where: { id: appointment.id } });
+    });
+
+    res.json({ success: true, message: "Appointment history deleted" });
+  } catch (err) {
+    console.error("Delete appointment history error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });

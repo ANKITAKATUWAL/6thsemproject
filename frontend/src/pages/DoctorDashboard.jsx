@@ -14,6 +14,7 @@ function DoctorDashboard() {
   const [activeTab, setActiveTab] = useState('appointments');
   const [appointments, setAppointments] = useState([]);
   const [profile, setProfile] = useState({
+    id: null,
     specialty: '',
     experience: '',
     fee: '',
@@ -28,6 +29,7 @@ function DoctorDashboard() {
   const [patientModalOpen, setPatientModalOpen] = useState(false);
   const [patientDetails, setPatientDetails] = useState(null);
   const [loadingPatient, setLoadingPatient] = useState(false);
+  const [selectedPatientAppointment, setSelectedPatientAppointment] = useState(null);
   const [availabilityState, setAvailabilityState] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -68,6 +70,7 @@ function DoctorDashboard() {
       const res = await axios.get('http://localhost:5000/api/appointments/doctor/profile', { withCredentials: true });
       const d = res.data;
       setProfile({
+        id: d.id || null,
         specialty: d.specialty || '',
         experience: d.experience || '',
         fee: d.fee || '',
@@ -84,7 +87,7 @@ function DoctorDashboard() {
       if (err?.response?.status === 404) {
         // Profile missing
         setProfileExists(false);
-        setProfile({ specialty: '', experience: '', fee: '', bio: '', photo: '' });
+        setProfile({ id: null, specialty: '', experience: '', fee: '', bio: '', photo: '' });
       } else {
         console.error("Fetch profile error:", err);
         setError("Failed to load profile");
@@ -133,10 +136,11 @@ function DoctorDashboard() {
     }
   };
 
-  const openPatientDetails = async (patientId) => {
+  const openPatientDetails = async (patientId, appointment = null) => {
     if (!patientId) return;
     try {
       setLoadingPatient(true);
+      setSelectedPatientAppointment(appointment);
       const res = await axios.get(`http://localhost:5000/api/appointments/patient/${patientId}`, { withCredentials: true });
       setPatientDetails(res.data);
       setPatientModalOpen(true);
@@ -262,6 +266,7 @@ function DoctorDashboard() {
   const specialty = user.doctor?.specialty || profile.specialty || 'Not specified';
   const experience = user.doctor?.experience || profile.experience || '—';
   const fee = user.doctor?.fee || profile.fee || '—';
+  const currentDoctorId = user?.doctor?.id || profile?.id || null;
 
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -501,7 +506,7 @@ function DoctorDashboard() {
                                 </div>
                               )}
                               <button
-                                onClick={() => openPatientDetails(appointment.patientId)}
+                                onClick={() => openPatientDetails(appointment.patientId, appointment)}
                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline flex items-center gap-1"
                               >
                                 View Patient Details →
@@ -871,7 +876,10 @@ function DoctorDashboard() {
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-white">Patient Details</h3>
                 <button 
-                  onClick={() => setPatientModalOpen(false)} 
+                  onClick={() => {
+                    setPatientModalOpen(false);
+                    setSelectedPatientAppointment(null);
+                  }} 
                   className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-all"
                 >
                   ✕ Close
@@ -903,13 +911,49 @@ function DoctorDashboard() {
                 </div>
               </div>
 
+              {selectedPatientAppointment && (
+                <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4">
+                  <h4 className="font-semibold text-blue-900 mb-2">Selected Appointment</h4>
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <span className="flex items-center gap-1 text-blue-800 bg-white px-2 py-1 rounded">
+                      <span>📅</span>
+                      {new Date(selectedPatientAppointment.appointmentDate).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </span>
+                    <span className="flex items-center gap-1 text-blue-800 bg-white px-2 py-1 rounded">
+                      <span>🕐</span> {selectedPatientAppointment.time}
+                    </span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      (selectedPatientAppointment.status || '').toUpperCase() === 'ACCEPTED' || (selectedPatientAppointment.status || '').toUpperCase() === 'APPROVED'
+                        ? 'bg-green-100 text-green-700'
+                        : (selectedPatientAppointment.status || '').toUpperCase() === 'PENDING'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : (selectedPatientAppointment.status || '').toUpperCase() === 'REJECTED'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {(selectedPatientAppointment.status || 'PENDING').toUpperCase()}
+                    </span>
+                  </div>
+                  {selectedPatientAppointment.reason && (
+                    <div className="text-sm text-blue-900 bg-white p-2 rounded-lg mt-3">
+                      <span className="font-medium">Reason:</span> {selectedPatientAppointment.reason}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="mb-4">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <span>📋</span> Appointment History (with you)
                 </h4>
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                  {((patientDetails.appointments || []).filter(a => a.doctorId === user.id)).length > 0 ? (
-                    (patientDetails.appointments || []).filter(a => a.doctorId === user.id).map(a => (
+                  {((patientDetails.appointments || []).filter(a => !currentDoctorId || a.doctorId === currentDoctorId)).length > 0 ? (
+                    (patientDetails.appointments || []).filter(a => !currentDoctorId || a.doctorId === currentDoctorId).map(a => (
                       <div key={a.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
                         <div className="flex justify-between items-start mb-2">
                           <div>

@@ -1,16 +1,18 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import { toast } from 'react-toastify';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
       await authService.logout();
       logout();
       toast.success('Logged out successfully');
+      navigate('/');
     } catch (error) {
       toast.error('Logout failed');
     }

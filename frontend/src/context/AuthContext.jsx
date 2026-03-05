@@ -15,24 +15,28 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
-    const token = Cookies.get('token');
-    if (token) {
-      try {
-        // Assuming we have an endpoint to get current user
-        const response = await axios.get('http://localhost:5000/api/auth/me', { withCredentials: true });
-        const serverUser = response.data.user || {};
-        // if server did not return a role, try to restore client-stored role
-        if (!serverUser.role) {
-          const storedRole = localStorage.getItem('role');
-          if (storedRole) serverUser.role = storedRole;
-        }
-        setUser(serverUser);
-      } catch (err) {
-        console.error("Auth check error:", err);
-        Cookies.remove('token');
+    try {
+      // Always ask backend for current user so httpOnly cookie sessions survive reloads/redirects.
+      const response = await axios.get('http://localhost:5000/api/auth/me', { withCredentials: true });
+      const serverUser = response.data.user || {};
+
+      // If server did not return a role, try to restore client-stored role.
+      if (!serverUser.role) {
+        const storedRole = localStorage.getItem('role');
+        if (storedRole) serverUser.role = storedRole;
       }
+
+      setUser(serverUser);
+    } catch (err) {
+      // Unauthorized/expired sessions should just resolve to logged-out state.
+      if (err?.response?.status !== 401) {
+        console.error("Auth check error:", err);
+      }
+      Cookies.remove('token');
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const login = (userData) => {

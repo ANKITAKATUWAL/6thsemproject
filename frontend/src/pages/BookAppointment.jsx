@@ -27,6 +27,14 @@ function BookAppointment() {
   const [appointmentCreated, setAppointmentCreated] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(false);
 
+  const getTodayLocalDate = () => {
+    const now = new Date();
+    const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+    return new Date(now.getTime() - offsetMs).toISOString().split('T')[0];
+  };
+
+  const minDate = getTodayLocalDate();
+
   // Fetch doctor details from API
   useEffect(() => {
     const fetchDoctor = async () => {
@@ -66,9 +74,17 @@ function BookAppointment() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!user) {
       setError("Please login to book an appointment");
       navigate('/login');
+      return;
+    }
+
+    if (!form.date || form.date < minDate) {
+      const msg = "Please select today or a future date.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -251,6 +267,7 @@ function BookAppointment() {
               name="date"
               value={form.date}
               onChange={handleChange}
+              min={minDate}
               required
               className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

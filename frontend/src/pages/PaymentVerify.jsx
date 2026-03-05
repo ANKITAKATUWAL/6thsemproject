@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import api from "../services/authService";
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function PaymentVerify() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,40 +15,73 @@ function PaymentVerify() {
   useEffect(() => {
     const pidx = searchParams.get("pidx");
 
-    if (!pidx || verifiedRef.current) {
-      if (!pidx) {
-        setError("Payment reference not found in URL.");
-      }
+    if (verifiedRef.current) {
+      return;
+    }
+
+    if (!pidx) {
+      setError("Payment reference not found in URL.");
       return;
     }
 
     verifiedRef.current = true;
 
-    api
-      .post("/payments/verify", { pidx })
-      .then((response) => {
-        const data = response.data;
-        if (data?.success) {
-          setStatus("Payment verified successfully.");
-          toast.success("Payment successful!");
-          setTimeout(() => navigate("/my-dashboard"), 1200);
+    let cancelled = false;
+
+    const verifyWithRetry = async () => {
+      try {
+        // Khalti may report Pending right after redirect; retry a few times.
+        for (let attempt = 1; attempt <= 6; attempt++) {
+          if (cancelled) return;
+
+          setStatus(
+            attempt === 1
+              ? "Verifying your payment..."
+              : `Confirming payment with Khalti (attempt ${attempt}/6)...`
+          );
+
+          const response = await api.post("/payments/verify", { pidx });
+          const data = response.data;
+
+          if (data?.success) {
+            setStatus("Payment verified successfully.");
+            toast.success("Payment successful!");
+            setTimeout(() => navigate("/my-dashboard"), 1200);
+            return;
+          }
+
+          const remoteStatus = (data?.status || "").toString().toUpperCase();
+          if (remoteStatus === "PENDING" || remoteStatus === "INITIATED") {
+            await wait(1500);
+            continue;
+          }
+
+          const message = data?.message || "Payment not completed.";
+          setError(message);
+          toast.error(message);
           return;
         }
 
-        setError(data?.message || "Payment not completed.");
-        toast.error(data?.message || "Payment verification failed.");
-      })
-      .catch((err) => {
+        const message = "Payment is taking longer to confirm. Please refresh your dashboard in a moment.";
+        setError(message);
+        toast.info(message);
+      } catch (err) {
         const message = err?.response?.data?.message || "Payment verification failed.";
         setError(message);
         toast.error(message);
-      })
-      .finally(() => {
+      } finally {
         const params = new URLSearchParams(searchParams);
         params.delete("pidx");
         params.delete("payment_success");
         setSearchParams(params, { replace: true });
-      });
+      }
+    };
+
+    verifyWithRetry();
+
+    return () => {
+      cancelled = true;
+    };
   }, [navigate, searchParams, setSearchParams]);
 
   return (

@@ -56,6 +56,28 @@ function MyDashboard() {
     }
   };
 
+  const isVisitedAppointment = (appointment) => {
+    if (!appointment) return false;
+    const datePart = new Date(appointment.appointmentDate).toISOString().split('T')[0];
+    const timePart = appointment.time && appointment.time.length === 5 ? `${appointment.time}:00` : (appointment.time || '00:00:00');
+    const scheduledAt = new Date(`${datePart}T${timePart}`);
+    return scheduledAt < new Date();
+  };
+
+  const deleteHistoryAppointment = async (appointmentId) => {
+    if (!window.confirm('Delete this appointment from your history? This cannot be undone.')) return;
+
+    try {
+      await axios.delete(`http://localhost:5000/api/appointments/${appointmentId}/history`, { withCredentials: true });
+      setAppointments(prev => prev.filter(a => a.id !== appointmentId));
+      toast.success('Appointment history deleted successfully!');
+    } catch (err) {
+      console.error('Delete history error', err);
+      const message = err?.response?.data?.message || 'Failed to delete appointment history';
+      toast.error(message);
+    }
+  };
+
   // Get greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -118,7 +140,7 @@ function MyDashboard() {
               <button
                 onClick={() => {
                   logout();
-                  navigate('/login');
+                  navigate('/');
                 }}
                 className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2 border border-white/20"
               >
@@ -291,6 +313,7 @@ function MyDashboard() {
                   <div className="space-y-4">
                     {filteredAppointments.map(app => {
                       const rawStatus = (app.status || '').toString().toUpperCase();
+                      const isVisited = isVisitedAppointment(app);
                       const doctorName = app.doctor?.user?.name || 'Doctor';
                       const specialty = app.doctor?.specialty || 'Specialist';
                       const fee = app.doctor?.fee;
@@ -379,8 +402,16 @@ function MyDashboard() {
                               {rawStatus === 'ACCEPTED' && (
                                 <div className="text-right">
                                   <p className="text-sm text-green-600 font-medium">✓ Confirmed</p>
-                                  <p className="text-xs text-gray-500">See you on your appointment day!</p>
+                                  <p className="text-xs text-gray-500">{isVisited ? 'Visited appointment' : 'See you on your appointment day!'}</p>
                                 </div>
+                              )}
+                              {rawStatus === 'ACCEPTED' && isVisited && (
+                                <button
+                                  onClick={() => deleteHistoryAppointment(app.id)}
+                                  className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-4 py-2 rounded-lg transition-all font-medium shadow-sm hover:shadow flex items-center gap-1"
+                                >
+                                  <span>🗑</span> Delete History
+                                </button>
                               )}
                               {rawStatus === 'REJECTED' && (
                                 <div className="text-right">

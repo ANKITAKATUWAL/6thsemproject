@@ -120,7 +120,7 @@ function UserDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader title={`Welcome back, ${user.name}!`} subtitle="Manage your healthcare appointments" actions={<button onClick={() => { logout(); navigate('/login'); }} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium">Logout</button>} />
+      <DashboardHeader title={`Welcome back, ${user.name}!`} subtitle="Manage your healthcare appointments" actions={<button onClick={() => { logout(); navigate('/'); }} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium">Logout</button>} />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <DashboardNav tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} className="mb-8" />

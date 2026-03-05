@@ -26,9 +26,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid, redirect to login
+      // Clear client token hint, but do not force hard redirect.
+      // Some flows (e.g., payment callback) can transiently 401 before session restore.
       Cookies.remove('token');
-      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

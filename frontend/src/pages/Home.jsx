@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { FaClock, FaUserMd, FaLaptop, FaSearch, FaCalendarAlt, FaVideo, FaStethoscope, FaAward, FaUsers, FaHospital, FaStar, FaCheckCircle, FaArrowRight, FaShieldAlt, FaHeadset } from "react-icons/fa";
 import { assets, specialityData } from "../assets/assets/assets_frontend/assets.js";
 import Navbar from "../components/Navbar";
@@ -10,28 +10,6 @@ function Home() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpeciality, setSelectedSpeciality] = useState("");
-  const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch("http://localhost:5000/api/doctors");
-        const data = await response.json();
-        setDoctors(data);
-        setError(null);
-      } catch (err) {
-        setError("Failed to load doctors. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDoctors();
-  }, []);
-
-  const topDoctors = doctors.slice(0, 8);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -171,92 +149,6 @@ function Home() {
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl"
               >
                 View All Specializations
-                <FaArrowRight />
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* ========== TOP DOCTORS SECTION ========== */}
-        <section className="py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
-                Top <span className="text-blue-600">Doctors</span> to Book
-              </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Meet our highly qualified and experienced doctors ready to provide you with exceptional care.
-              </p>
-            </div>
-
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {loading ? (
-                <div className="col-span-4 text-center py-10">
-                  <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-                  <p className="mt-2 text-gray-600">Loading doctors...</p>
-                </div>
-              ) : error ? (
-                <div className="col-span-4 text-center py-10">
-                  <p className="text-red-500">{error}</p>
-                </div>
-              ) : topDoctors.length === 0 ? (
-                <div className="col-span-4 text-center py-10">
-                  <p className="text-gray-600">No doctors found.</p>
-                </div>
-              ) : (
-                topDoctors.map((doctor, index) => (
-                  <div
-                    key={doctor.id || index}
-                    className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:-translate-y-2"
-                  >
-                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-cyan-50">
-                      <img
-                        src={doctor.photo || doctor.image || "https://via.placeholder.com/300x200?text=Doctor"}
-                        alt={doctor.name}
-                        className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      {doctor.available !== false && (
-                        <div className="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                          <FaCheckCircle /> Available
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-2">{doctor.name}</h3>
-                      <p className="text-blue-600 font-semibold mb-3">{doctor.specialty || doctor.speciality}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-                        <div className="flex items-center gap-1">
-                          <FaStethoscope className="text-blue-500" />
-                          <span>{doctor.experience || "-"} yrs</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <FaStar className="text-yellow-400" />
-                          <span>4.8</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-2xl font-bold text-gray-800">Rs. {doctor.fee || doctor.fees}</div>
-                        <Link
-                          to={`/book/${doctor.id || doctor._id}`}
-                          className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2"
-                        >
-                          Book
-                          <FaArrowRight />
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="text-center mt-12">
-              <Link
-                to="/doctors"
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-                View All Doctors
                 <FaArrowRight />
               </Link>
             </div>
