@@ -21,6 +21,12 @@ const isVisitedAcceptedAppointment = (appointment) => {
   return scheduledAt < new Date();
 };
 
+const canDeleteAppointmentHistory = (appointment) => {
+  if (!appointment) return false;
+  if (appointment.status === 'CANCELLED') return true;
+  return isVisitedAcceptedAppointment(appointment);
+};
+
 // Upload doctor photo
 router.post("/doctor/photo", auth, upload.single('photo'), async (req, res) => {
   try {
@@ -406,7 +412,7 @@ router.put("/:id/cancel", auth, async (req, res) => {
   }
 });
 
-// Delete appointment history (patient only) for accepted + visited appointments
+// Delete appointment history (patient only) for cancelled or visited accepted appointments
 router.delete("/:id/history", auth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -420,9 +426,9 @@ router.delete("/:id/history", auth, async (req, res) => {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    if (!isVisitedAcceptedAppointment(appointment)) {
+    if (!canDeleteAppointmentHistory(appointment)) {
       return res.status(400).json({
-        message: "You can only delete history for visited accepted appointments"
+        message: "You can only delete history for cancelled or visited accepted appointments"
       });
     }
 
